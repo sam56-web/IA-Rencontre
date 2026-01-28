@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { authenticate } from '../middleware/auth.middleware.js';
+import { authMiddleware as authenticate } from '../middleware/auth.middleware.js';
 import * as themeService from '../../services/theme.service.js';
 
 const router = Router();

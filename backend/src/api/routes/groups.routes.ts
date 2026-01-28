@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
-import { authenticate } from '../middleware/auth.middleware.js';
+import { authMiddleware as authenticate } from '../middleware/auth.middleware.js';
 import * as groupService from '../../services/group.service.js';
 import config from '../../config/index.js';
 
