@@ -212,33 +212,57 @@ router.patch('/reorder', async (req: Request, res: Response, next: NextFunction)
   }
 });
 
-// Valid section names mapping to database columns
-const SECTION_COLUMNS: Record<string, string> = {
-  current_life: 'photo_current_life',
-  looking_for: 'photo_looking_for',
-  important: 'photo_important',
-  not_looking_for: 'photo_not_looking_for',
-};
+// Import section photo service
+import * as sectionPhotoService from '../../services/section-photo.service.js';
 
-// POST /api/photos/section/:section
+// GET /api/photos/section - Get all section photos grouped by section
+router.get('/section', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const photos = await sectionPhotoService.getSectionPhotosForUser(req.userId!);
+
+    res.json({
+      success: true,
+      data: photos,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/photos/section/:section - Get photos for a specific section
+router.get('/section/:section', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { section } = req.params;
+
+    if (!sectionPhotoService.isValidSection(section)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_SECTION',
+          message: 'Invalid section. Must be one of: current_life, looking_for, important',
+        },
+      });
+      return;
+    }
+
+    const photos = await sectionPhotoService.getSectionPhotos(req.userId!, section);
+
+    res.json({
+      success: true,
+      data: photos,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/photos/section/:section - Upload a photo to a section
 router.post(
   '/section/:section',
   upload.single('photo'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { section } = req.params;
-
-      // Validate section name
-      if (!SECTION_COLUMNS[section]) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'INVALID_SECTION',
-            message: 'Invalid section. Must be one of: current_life, looking_for, important, not_looking_for',
-          },
-        });
-        return;
-      }
 
       if (!req.file) {
         res.status(400).json({
@@ -262,99 +286,58 @@ router.post(
         return;
       }
 
-      // Process image with sharp - square crop for section photos
-      const photoId = uuidv4();
-      const filename = `section_${section}_${photoId}.webp`;
-      const filepath = path.join(uploadDir, filename);
-
-      await sharp(req.file.buffer)
-        .resize(400, 400, { fit: 'cover', position: 'centre' })
-        .webp({ quality: 85 })
-        .toFile(filepath);
-
-      const url = `/uploads/${filename}`;
-      const column = SECTION_COLUMNS[section];
-
-      // Delete old section photo if exists
-      const oldPhotoResult = await query(
-        `SELECT ${column} FROM profiles WHERE user_id = $1`,
-        [req.userId!]
-      );
-
-      if (oldPhotoResult.rows.length > 0 && oldPhotoResult.rows[0][column]) {
-        const oldFilename = oldPhotoResult.rows[0][column].split('/').pop();
-        if (oldFilename) {
-          await fs.unlink(path.join(uploadDir, oldFilename)).catch(() => {});
-        }
-      }
-
-      // Update profile with new photo URL
-      await query(
-        `UPDATE profiles SET ${column} = $1 WHERE user_id = $2`,
-        [url, req.userId!]
+      const photo = await sectionPhotoService.uploadSectionPhoto(
+        req.userId!,
+        section,
+        req.file.buffer
       );
 
       res.status(201).json({
         success: true,
-        data: {
-          section,
-          url,
-          message: 'Section photo uploaded successfully',
-        },
+        data: photo,
       });
     } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid section')) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'INVALID_SECTION', message: error.message },
+          });
+          return;
+        }
+        if (error.message.includes('Maximum')) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'LIMIT_EXCEEDED', message: error.message },
+          });
+          return;
+        }
+        if (error.message.includes('not allowed')) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'NOT_ALLOWED', message: error.message },
+          });
+          return;
+        }
+      }
       next(error);
     }
   }
 );
 
-// DELETE /api/photos/section/:section
-router.delete('/section/:section', async (req: Request, res: Response, next: NextFunction) => {
+// DELETE /api/photos/section/:photoId - Delete a section photo
+router.delete('/section/:photoId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { section } = req.params;
+    const { photoId } = req.params;
 
-    // Validate section name
-    if (!SECTION_COLUMNS[section]) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_SECTION',
-          message: 'Invalid section. Must be one of: current_life, looking_for, important, not_looking_for',
-        },
-      });
-      return;
-    }
+    const deleted = await sectionPhotoService.deleteSectionPhoto(req.userId!, photoId);
 
-    const column = SECTION_COLUMNS[section];
-
-    // Get current photo URL
-    const result = await query(
-      `SELECT ${column} FROM profiles WHERE user_id = $1`,
-      [req.userId!]
-    );
-
-    if (result.rows.length === 0) {
+    if (!deleted) {
       res.status(404).json({
         success: false,
-        error: { code: 'NOT_FOUND', message: 'Profile not found' },
+        error: { code: 'NOT_FOUND', message: 'Photo not found or not owned by you' },
       });
       return;
-    }
-
-    const photoUrl = result.rows[0][column];
-
-    if (photoUrl) {
-      // Delete file
-      const filename = photoUrl.split('/').pop();
-      if (filename) {
-        await fs.unlink(path.join(uploadDir, filename)).catch(() => {});
-      }
-
-      // Clear photo URL in profile
-      await query(
-        `UPDATE profiles SET ${column} = NULL WHERE user_id = $1`,
-        [req.userId!]
-      );
     }
 
     res.json({
@@ -362,6 +345,40 @@ router.delete('/section/:section', async (req: Request, res: Response, next: Nex
       data: { message: 'Section photo deleted successfully' },
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/photos/section/:section/reorder - Reorder photos in a section
+router.post('/section/:section/reorder', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { section } = req.params;
+    const { photoIds } = req.body;
+
+    if (!Array.isArray(photoIds)) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'photoIds must be an array' },
+      });
+      return;
+    }
+
+    await sectionPhotoService.reorderSectionPhotos(req.userId!, section, photoIds);
+
+    res.json({
+      success: true,
+      data: { message: 'Photos reordered successfully' },
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('Invalid section') || error.message.includes('Invalid photo')) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_INPUT', message: error.message },
+        });
+        return;
+      }
+    }
     next(error);
   }
 });

@@ -1,8 +1,14 @@
 import { query, getClient } from './pool.js';
 import { hashPassword } from '../utils/password.js';
 
+/**
+ * IMPORTANT: Ce seed est IDEMPOTENT
+ * - Il peut être lancé plusieurs fois sans casser les données
+ * - Utilise ON CONFLICT DO NOTHING pour éviter les doublons
+ * - NE supprime JAMAIS les données existantes
+ */
 async function seed(): Promise<void> {
-  console.log('Starting database seeding...');
+  console.log('Starting database seeding (idempotent)...');
 
   const client = await getClient();
 
@@ -75,36 +81,134 @@ async function seed(): Promise<void> {
       },
     ];
 
+    // Store user IDs for section photos
+    const userIds: Record<string, string> = {};
+
     for (const user of users) {
-      // Insert user
+      // Insert user with ON CONFLICT DO NOTHING (idempotent)
       const userResult = await client.query(
         `INSERT INTO users (
           email, username, password_hash, location_country, location_city,
           intentions, birth_year, open_to_remote, languages
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, ARRAY['fr', 'en'])
+        ON CONFLICT (email) DO NOTHING
         RETURNING id`,
         [user.email, user.username, password, user.locationCountry, user.locationCity, user.intentions, user.birthYear]
       );
 
-      const userId = userResult.rows[0].id;
+      // Get user ID (either from insert or existing)
+      let userId: string;
+      if (userResult.rows.length > 0) {
+        userId = userResult.rows[0].id;
+        console.log(`  ✓ Created user: ${user.username}`);
+      } else {
+        // User already exists, get their ID
+        const existingUser = await client.query('SELECT id FROM users WHERE email = $1', [user.email]);
+        userId = existingUser.rows[0].id;
+        console.log(`  → User exists: ${user.username}`);
+      }
 
-      // Insert profile
-      await client.query(
+      userIds[user.username] = userId;
+
+      // Insert profile with ON CONFLICT DO NOTHING (idempotent)
+      const profileResult = await client.query(
         `INSERT INTO profiles (
           user_id, current_life, looking_for, whats_important, not_looking_for,
           extracted_themes, completeness_score, moderation_status
-        ) VALUES ($1, $2, $3, $4, $5, $6, 75, 'approved')`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, 75, 'approved')
+        ON CONFLICT (user_id) DO NOTHING
+        RETURNING id`,
         [
           userId,
           user.currentLife,
           user.lookingFor,
           user.whatsImportant,
           user.notLookingFor,
-          ['écriture', 'réflexion', 'voyage'], // Simplified themes
+          ['écriture', 'réflexion', 'voyage'],
         ]
       );
 
-      console.log(`  ✓ Created user: ${user.username}`);
+      if (profileResult.rows.length > 0) {
+        console.log(`    ✓ Created profile for: ${user.username}`);
+      } else {
+        console.log(`    → Profile exists for: ${user.username}`);
+      }
+    }
+
+    // Add section photos for test users (idempotent with ON CONFLICT)
+    console.log('\nAdding section photos...');
+
+    const sectionPhotos = [
+      // Alice - current_life (3 photos)
+      { username: 'alice_writer', section: 'current_life', url: 'https://picsum.photos/seed/alice-life1/400/400', position: 0 },
+      { username: 'alice_writer', section: 'current_life', url: 'https://picsum.photos/seed/alice-life2/400/400', position: 1 },
+      { username: 'alice_writer', section: 'current_life', url: 'https://picsum.photos/seed/alice-life3/400/400', position: 2 },
+      // Alice - looking_for (2 photos)
+      { username: 'alice_writer', section: 'looking_for', url: 'https://picsum.photos/seed/alice-look1/400/400', position: 0 },
+      { username: 'alice_writer', section: 'looking_for', url: 'https://picsum.photos/seed/alice-look2/400/400', position: 1 },
+      // Alice - important (1 photo)
+      { username: 'alice_writer', section: 'important', url: 'https://picsum.photos/seed/alice-imp1/400/400', position: 0 },
+
+      // Bob - current_life (2 photos)
+      { username: 'bob_explorer', section: 'current_life', url: 'https://picsum.photos/seed/bob-life1/400/400', position: 0 },
+      { username: 'bob_explorer', section: 'current_life', url: 'https://picsum.photos/seed/bob-life2/400/400', position: 1 },
+      // Bob - looking_for (1 photo)
+      { username: 'bob_explorer', section: 'looking_for', url: 'https://picsum.photos/seed/bob-look1/400/400', position: 0 },
+      // Bob - important (2 photos)
+      { username: 'bob_explorer', section: 'important', url: 'https://picsum.photos/seed/bob-imp1/400/400', position: 0 },
+      { username: 'bob_explorer', section: 'important', url: 'https://picsum.photos/seed/bob-imp2/400/400', position: 1 },
+
+      // Claire - current_life (4 photos - max)
+      { username: 'claire_creative', section: 'current_life', url: 'https://picsum.photos/seed/claire-life1/400/400', position: 0 },
+      { username: 'claire_creative', section: 'current_life', url: 'https://picsum.photos/seed/claire-life2/400/400', position: 1 },
+      { username: 'claire_creative', section: 'current_life', url: 'https://picsum.photos/seed/claire-life3/400/400', position: 2 },
+      { username: 'claire_creative', section: 'current_life', url: 'https://picsum.photos/seed/claire-life4/400/400', position: 3 },
+      // Claire - looking_for (3 photos)
+      { username: 'claire_creative', section: 'looking_for', url: 'https://picsum.photos/seed/claire-look1/400/400', position: 0 },
+      { username: 'claire_creative', section: 'looking_for', url: 'https://picsum.photos/seed/claire-look2/400/400', position: 1 },
+      { username: 'claire_creative', section: 'looking_for', url: 'https://picsum.photos/seed/claire-look3/400/400', position: 2 },
+      // Claire - important (2 photos - max)
+      { username: 'claire_creative', section: 'important', url: 'https://picsum.photos/seed/claire-imp1/400/400', position: 0 },
+      { username: 'claire_creative', section: 'important', url: 'https://picsum.photos/seed/claire-imp2/400/400', position: 1 },
+
+      // David - current_life (1 photo)
+      { username: 'david_thinker', section: 'current_life', url: 'https://picsum.photos/seed/david-life1/400/400', position: 0 },
+      // David - looking_for (1 photo)
+      { username: 'david_thinker', section: 'looking_for', url: 'https://picsum.photos/seed/david-look1/400/400', position: 0 },
+
+      // Emma - current_life (2 photos)
+      { username: 'emma_nomad', section: 'current_life', url: 'https://picsum.photos/seed/emma-life1/400/400', position: 0 },
+      { username: 'emma_nomad', section: 'current_life', url: 'https://picsum.photos/seed/emma-life2/400/400', position: 1 },
+      // Emma - important (1 photo)
+      { username: 'emma_nomad', section: 'important', url: 'https://picsum.photos/seed/emma-imp1/400/400', position: 0 },
+    ];
+
+    let addedPhotos = 0;
+    let skippedPhotos = 0;
+
+    for (const photo of sectionPhotos) {
+      const userId = userIds[photo.username];
+      if (userId) {
+        // Use url as unique identifier to avoid duplicates
+        const result = await client.query(
+          `INSERT INTO section_photos (user_id, section, url, position)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT DO NOTHING
+           RETURNING id`,
+          [userId, photo.section, photo.url, photo.position]
+        );
+
+        if (result.rows.length > 0) {
+          addedPhotos++;
+        } else {
+          skippedPhotos++;
+        }
+      }
+    }
+
+    console.log(`  ✓ Added ${addedPhotos} new section photos`);
+    if (skippedPhotos > 0) {
+      console.log(`  → Skipped ${skippedPhotos} existing photos`);
     }
 
     await client.query('COMMIT');

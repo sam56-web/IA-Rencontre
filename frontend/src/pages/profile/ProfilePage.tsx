@@ -10,7 +10,7 @@ import { useProfile } from '../../hooks/useProfile';
 import { useStartConversation } from '../../hooks/useConversations';
 import { useAuthStore } from '../../stores/auth.store';
 import { INTENTION_LABELS } from '../../types';
-import { getUploadUrl, themesApi } from '../../services/api';
+import { getUploadUrl, themesApi, SectionPhoto } from '../../services/api';
 
 export function ProfilePage() {
   const { userId } = useParams<{ userId: string }>();
@@ -186,21 +186,21 @@ export function ProfilePage() {
           <ProfileBlock
             title="Ma vie en ce moment"
             content={profile.currentLife}
-            photoUrl={getUploadUrl(profile.sectionPhotos?.currentLife)}
+            photos={profile.sectionPhotos?.current_life || []}
             onQuoteSelect={!isOwnProfile ? handleQuoteSelect : undefined}
           />
 
           <ProfileBlock
             title="Ce que je cherche"
             content={profile.lookingFor}
-            photoUrl={getUploadUrl(profile.sectionPhotos?.lookingFor)}
+            photos={profile.sectionPhotos?.looking_for || []}
             onQuoteSelect={!isOwnProfile ? handleQuoteSelect : undefined}
           />
 
           <ProfileBlock
             title="Ce qui compte pour moi"
             content={profile.whatsImportant}
-            photoUrl={getUploadUrl(profile.sectionPhotos?.important)}
+            photos={profile.sectionPhotos?.important || []}
             onQuoteSelect={!isOwnProfile ? handleQuoteSelect : undefined}
           />
 
@@ -208,7 +208,7 @@ export function ProfilePage() {
             <ProfileBlock
               title="Ce que je ne cherche pas"
               content={profile.notLookingFor}
-              photoUrl={getUploadUrl(profile.sectionPhotos?.notLookingFor)}
+              photos={[]}
               variant="muted"
             />
           )}
@@ -292,12 +292,14 @@ export function ProfilePage() {
 interface ProfileBlockProps {
   title: string;
   content: string;
-  photoUrl?: string;
+  photos: SectionPhoto[];
   variant?: 'default' | 'muted';
   onQuoteSelect?: (text: string) => void;
 }
 
-function ProfileBlock({ title, content, photoUrl, variant = 'default', onQuoteSelect }: ProfileBlockProps) {
+function ProfileBlock({ title, content, photos, variant = 'default', onQuoteSelect }: ProfileBlockProps) {
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+
   const handleTextSelect = () => {
     if (!onQuoteSelect) return;
     const selection = window.getSelection();
@@ -307,36 +309,70 @@ function ProfileBlock({ title, content, photoUrl, variant = 'default', onQuoteSe
   };
 
   return (
-    <Card className={variant === 'muted' ? 'bg-gray-50' : ''}>
-      <CardContent className="p-6">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-          {title}
-        </h3>
-        <div className={photoUrl ? 'flex gap-4' : ''}>
-          {photoUrl && (
-            <div className="flex-shrink-0">
-              <img
-                src={photoUrl}
-                alt=""
-                className="w-24 h-24 object-cover rounded-lg"
-              />
+    <>
+      <Card className={variant === 'muted' ? 'bg-gray-50' : ''}>
+        <CardContent className="p-6">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            {title}
+          </h3>
+
+          {/* Text content */}
+          <p
+            className="text-gray-800 font-serif leading-relaxed whitespace-pre-line"
+            onMouseUp={handleTextSelect}
+          >
+            {content}
+          </p>
+
+          {onQuoteSelect && (
+            <p className="text-xs text-gray-400 mt-3">
+              Selectionnez du texte pour le citer dans votre message
+            </p>
+          )}
+
+          {/* Section photos grid */}
+          {photos.length > 0 && (
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {photos.map((photo) => (
+                <button
+                  key={photo.id}
+                  onClick={() => setLightboxPhoto(getUploadUrl(photo.url) || null)}
+                  className="aspect-square rounded-lg overflow-hidden hover:opacity-90 transition-opacity focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                >
+                  <img
+                    src={getUploadUrl(photo.url)}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
             </div>
           )}
-          <div className="flex-1">
-            <p
-              className="text-gray-800 font-serif leading-relaxed whitespace-pre-line"
-              onMouseUp={handleTextSelect}
-            >
-              {content}
-            </p>
-            {onQuoteSelect && (
-              <p className="text-xs text-gray-400 mt-3">
-                Sélectionnez du texte pour le citer dans votre message
-              </p>
-            )}
-          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lightbox modal for full-size photo */}
+      {lightboxPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full transition-colors"
+            onClick={() => setLightboxPhoto(null)}
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={lightboxPhoto}
+            alt=""
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </>
   );
 }

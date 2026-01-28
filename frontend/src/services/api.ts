@@ -166,7 +166,28 @@ export const profilesApi = {
 
 // ============ PHOTOS ============
 
-export type SectionPhotoType = 'current_life' | 'looking_for' | 'important' | 'not_looking_for';
+export type SectionPhotoType = 'current_life' | 'looking_for' | 'important';
+
+export interface SectionPhoto {
+  id: string;
+  userId: string;
+  section: string;
+  url: string;
+  position: number;
+  createdAt: string;
+}
+
+export interface SectionPhotosGrouped {
+  current_life: SectionPhoto[];
+  looking_for: SectionPhoto[];
+  important: SectionPhoto[];
+}
+
+export const SECTION_PHOTO_LIMITS: Record<SectionPhotoType, number> = {
+  current_life: 4,
+  looking_for: 4,
+  important: 2,
+};
 
 export const photosApi = {
   async getMyPhotos(): Promise<Photo[]> {
@@ -194,11 +215,22 @@ export const photosApi = {
     await api.patch('/photos/reorder', { photoIds });
   },
 
-  async uploadSectionPhoto(section: SectionPhotoType, file: File): Promise<{ section: string; url: string }> {
+  // Section photos (multiple per section)
+  async getSectionPhotos(): Promise<SectionPhotosGrouped> {
+    const { data } = await api.get<ApiResponse<SectionPhotosGrouped>>('/photos/section');
+    return data.data!;
+  },
+
+  async getSectionPhotosBySection(section: SectionPhotoType): Promise<SectionPhoto[]> {
+    const { data } = await api.get<ApiResponse<SectionPhoto[]>>(`/photos/section/${section}`);
+    return data.data!;
+  },
+
+  async uploadSectionPhoto(section: SectionPhotoType, file: File): Promise<SectionPhoto> {
     const formData = new FormData();
     formData.append('photo', file);
 
-    const { data } = await api.post<ApiResponse<{ section: string; url: string }>>(
+    const { data } = await api.post<ApiResponse<SectionPhoto>>(
       `/photos/section/${section}`,
       formData,
       { headers: { 'Content-Type': 'multipart/form-data' } }
@@ -206,8 +238,12 @@ export const photosApi = {
     return data.data!;
   },
 
-  async deleteSectionPhoto(section: SectionPhotoType): Promise<void> {
-    await api.delete(`/photos/section/${section}`);
+  async deleteSectionPhoto(photoId: string): Promise<void> {
+    await api.delete(`/photos/section/${photoId}`);
+  },
+
+  async reorderSectionPhotos(section: SectionPhotoType, photoIds: string[]): Promise<void> {
+    await api.post(`/photos/section/${section}/reorder`, { photoIds });
   },
 };
 

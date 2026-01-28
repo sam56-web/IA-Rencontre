@@ -2,6 +2,7 @@ import { query } from '../db/pool.js';
 import type { Profile, ProfileFull, ProfilePreview, User, Photo } from '../types/index.js';
 import type { CreateProfileInput, UpdateProfileInput } from '../utils/validators.js';
 import { extractThemes, calculateProfileCompleteness } from './themeExtractor.service.js';
+import * as sectionPhotoService from './section-photo.service.js';
 import config from '../config/index.js';
 
 export async function getProfileByUserId(userId: string): Promise<Profile | null> {
@@ -167,8 +168,7 @@ export async function getProfileFull(userId: string, viewerId?: string): Promise
       u.id as user_id, u.username, u.birth_year, u.location_city, u.location_country,
       u.intentions, u.open_to_remote, u.last_active_at,
       p.current_life, p.looking_for, p.whats_important, p.not_looking_for,
-      p.extracted_themes, p.completeness_score,
-      p.photo_current_life, p.photo_looking_for, p.photo_important, p.photo_not_looking_for
+      p.extracted_themes, p.completeness_score
     FROM users u
     JOIN profiles p ON p.user_id = u.id
     WHERE u.id = $1 AND u.is_active = true AND p.moderation_status = 'approved'`,
@@ -188,6 +188,9 @@ export async function getProfileFull(userId: string, viewerId?: string): Promise
   );
 
   const photos: Photo[] = photosResult.rows.map(mapDbRowToPhoto);
+
+  // Get section photos (multiple per section)
+  const sectionPhotos = await sectionPhotoService.getSectionPhotosForUser(userId);
 
   // Get viewer info for matching
   let matchedIntentions: string[] = [];
@@ -229,12 +232,7 @@ export async function getProfileFull(userId: string, viewerId?: string): Promise
     openToRemote: row.open_to_remote,
     mainPhotoUrl: photos.length > 0 ? photos[0].url : undefined,
     photos,
-    sectionPhotos: {
-      currentLife: row.photo_current_life || undefined,
-      lookingFor: row.photo_looking_for || undefined,
-      important: row.photo_important || undefined,
-      notLookingFor: row.photo_not_looking_for || undefined,
-    },
+    sectionPhotos,
     isLocal,
     isSameCountry,
     lastActiveCategory: getLastActiveCategory(new Date(row.last_active_at)),
@@ -266,12 +264,6 @@ function mapDbRowToProfile(row: Record<string, unknown>): Profile {
     wordCount: row.word_count as number,
     completenessScore: row.completeness_score as number,
     moderationStatus: row.moderation_status as Profile['moderationStatus'],
-    sectionPhotos: {
-      currentLife: (row.photo_current_life as string) || undefined,
-      lookingFor: (row.photo_looking_for as string) || undefined,
-      important: (row.photo_important as string) || undefined,
-      notLookingFor: (row.photo_not_looking_for as string) || undefined,
-    },
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
   };

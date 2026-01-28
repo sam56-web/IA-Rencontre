@@ -72,12 +72,30 @@ export interface UserPublic {
 
 // ============ PROFILE ============
 
-export interface SectionPhotos {
-  currentLife?: string;
-  lookingFor?: string;
-  important?: string;
-  notLookingFor?: string;
+// Section photo for multiple photos per section
+export interface SectionPhoto {
+  id: string;
+  userId: string;
+  section: string;
+  url: string;
+  position: number;
+  createdAt: Date;
 }
+
+// Section photos grouped by section name
+export interface SectionPhotosGrouped {
+  current_life: SectionPhoto[];
+  looking_for: SectionPhoto[];
+  important: SectionPhoto[];
+}
+
+// Section limits
+export const SECTION_PHOTO_LIMITS = {
+  current_life: 4,
+  looking_for: 4,
+  important: 2,
+  not_looking_for: 0,
+} as const;
 
 export interface Profile {
   id: string;
@@ -90,7 +108,6 @@ export interface Profile {
   wordCount: number;
   completenessScore: number;
   moderationStatus: ModerationStatus;
-  sectionPhotos?: SectionPhotos;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -117,7 +134,7 @@ export interface ProfileFull extends ProfilePreview {
   whatsImportant: string;
   notLookingFor?: string;
   photos: Photo[];
-  sectionPhotos?: SectionPhotos;
+  sectionPhotos: SectionPhotosGrouped;
   completenessScore: number;
 }
 
