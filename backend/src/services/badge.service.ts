@@ -171,13 +171,15 @@ async function getUserStats(userId: string): Promise<UserStats> {
     // Profile completeness
     pool.query(
       `SELECT
-         CASE WHEN p.bio IS NOT NULL AND p.bio != '' THEN 20 ELSE 0 END +
-         CASE WHEN p.avatar_url IS NOT NULL THEN 20 ELSE 0 END +
-         CASE WHEN p.city IS NOT NULL AND p.city != '' THEN 20 ELSE 0 END +
-         CASE WHEN p.birth_date IS NOT NULL THEN 20 ELSE 0 END +
+         CASE WHEN p.current_life IS NOT NULL AND p.current_life != '' THEN 20 ELSE 0 END +
+         CASE WHEN (SELECT COUNT(*) FROM photos WHERE user_id = $1) > 0 THEN 20 ELSE 0 END +
+         CASE WHEN u.location_city IS NOT NULL AND u.location_city != '' THEN 20 ELSE 0 END +
+         CASE WHEN u.birth_year IS NOT NULL THEN 20 ELSE 0 END +
          CASE WHEN (SELECT COUNT(*) FROM user_themes WHERE user_id = $1) > 0 THEN 20 ELSE 0 END
          as completeness
-       FROM profiles p WHERE p.user_id = $1`,
+       FROM profiles p
+       JOIN users u ON p.user_id = u.id
+       WHERE p.user_id = $1`,
       [userId]
     ),
     // Messages sent
@@ -203,7 +205,7 @@ async function getUserStats(userId: string): Promise<UserStats> {
     pool.query(
       `SELECT COUNT(*) as count
        FROM groups g
-       WHERE g.created_by = $1
+       WHERE g.creator_id = $1
        AND (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) >= 10`,
       [userId]
     ),
@@ -216,9 +218,8 @@ async function getUserStats(userId: string): Promise<UserStats> {
     pool.query(
       `SELECT COUNT(DISTINCT c.id) as count
        FROM conversations c
-       JOIN conversation_participants cp ON c.id = cp.conversation_id
        JOIN messages m ON c.id = m.conversation_id
-       WHERE cp.user_id = $1
+       WHERE (c.user1_id = $1 OR c.user2_id = $1)
        AND m.created_at > NOW() - INTERVAL '30 days'`,
       [userId]
     ),
