@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/Button';
 import { useDiscovery } from '../../hooks/useDiscovery';
+import { useAffinityMatches } from '../../hooks/useAffinity';
 import { ProfileCard } from './components/ProfileCard';
+import { AffinityCard } from './components/AffinityCard';
 import { ModeSelector } from './components/ModeSelector';
 import { ZoneVitality } from './components/ZoneVitality';
 import { INTENTIONS, INTENTION_LABELS } from '../../types';
@@ -20,15 +22,23 @@ export function DiscoverPage() {
     fetchNextPage,
     refetch,
   } = useDiscovery({
-    mode,
+    mode: mode === 'by_affinity' ? 'everywhere' : mode,
     intentions: mode === 'by_intention' ? selectedIntentions : undefined,
   });
 
+  const {
+    data: affinityData,
+    isLoading: affinityLoading,
+  } = useAffinityMatches({ limit: 20 });
+
   useEffect(() => {
-    refetch();
+    if (mode !== 'by_affinity') {
+      refetch();
+    }
   }, [mode, selectedIntentions, refetch]);
 
   const profiles = data?.pages.flatMap((page) => page.profiles) || [];
+  const affinityMatches = affinityData?.users || [];
 
   const toggleIntention = (intention: Intention) => {
     setSelectedIntentions((prev) =>
@@ -84,43 +94,73 @@ export function DiscoverPage() {
         )}
 
         {/* Results */}
-        {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-40 bg-gray-100 rounded-xl animate-pulse"
-              />
-            ))}
-          </div>
-        ) : profiles.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600 mb-4">
-              Aucun profil trouvé avec ces critères.
-            </p>
-            <Button variant="outline" onClick={() => setMode('everywhere')}>
-              Voir tous les profils
-            </Button>
-          </div>
+        {mode === 'by_affinity' ? (
+          // Affinity mode
+          affinityLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-40 bg-gray-100 rounded-xl animate-pulse"
+                />
+              ))}
+            </div>
+          ) : affinityMatches.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600 mb-4">
+                Aucune affinité trouvée. Complétez votre profil pour améliorer les correspondances.
+              </p>
+              <Button variant="outline" onClick={() => setMode('everywhere')}>
+                Voir tous les profils
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {affinityMatches.map((match) => (
+                <AffinityCard key={match.id} match={match} />
+              ))}
+            </div>
+          )
         ) : (
-          <div className="space-y-4">
-            {profiles.map((profile) => (
-              <ProfileCard key={profile.userId} profile={profile} />
-            ))}
+          // Other modes
+          isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-40 bg-gray-100 rounded-xl animate-pulse"
+                />
+              ))}
+            </div>
+          ) : profiles.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600 mb-4">
+                Aucun profil trouvé avec ces critères.
+              </p>
+              <Button variant="outline" onClick={() => setMode('everywhere')}>
+                Voir tous les profils
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {profiles.map((profile) => (
+                <ProfileCard key={profile.userId} profile={profile} />
+              ))}
 
-            {/* Load more */}
-            {hasNextPage && (
-              <div className="text-center pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchNextPage()}
-                  isLoading={isFetchingNextPage}
-                >
-                  Charger plus de profils
-                </Button>
-              </div>
-            )}
-          </div>
+              {/* Load more */}
+              {hasNextPage && (
+                <div className="text-center pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => fetchNextPage()}
+                    isLoading={isFetchingNextPage}
+                  >
+                    Charger plus de profils
+                  </Button>
+                </div>
+              )}
+            </div>
+          )
         )}
       </div>
     </Layout>

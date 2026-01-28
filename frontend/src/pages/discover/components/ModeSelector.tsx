@@ -13,6 +13,11 @@ const modes: { value: DiscoveryMode; label: string; description: string }[] = [
     description: 'Profils de votre région en priorité',
   },
   {
+    value: 'by_affinity',
+    label: 'Affinités',
+    description: 'Les plus compatibles avec vous',
+  },
+  {
     value: 'everywhere',
     label: 'Partout',
     description: 'Tous les profils, sans limite géographique',

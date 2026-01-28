@@ -123,7 +123,7 @@ export interface Photo {
 
 // ============ DISCOVERY ============
 
-export type DiscoveryMode = 'around_me' | 'everywhere' | 'by_intention';
+export type DiscoveryMode = 'around_me' | 'everywhere' | 'by_intention' | 'by_affinity';
 
 export interface DiscoveryResponse {
   profiles: ProfilePreview[];

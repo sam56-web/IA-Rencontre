@@ -19,6 +19,10 @@ import messagesRoutes from './api/routes/messages.routes.js';
 import themesRoutes from './api/routes/themes.routes.js';
 import groupsRoutes from './api/routes/groups.routes.js';
 import searchRoutes from './api/routes/search.routes.js';
+import notificationsRoutes from './api/routes/notifications.routes.js';
+import affinityRoutes from './api/routes/affinity.routes.js';
+import eventsRoutes from './api/routes/events.routes.js';
+import badgesRoutes from './api/routes/badges.routes.js';
 
 const app = express();
 
@@ -64,6 +68,10 @@ app.use('/api/conversations', messagesRoutes); // Messages are nested under conv
 app.use('/api/themes', themesRoutes);
 app.use('/api/groups', groupsRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/affinity', affinityRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/badges', badgesRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

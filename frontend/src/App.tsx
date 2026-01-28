@@ -13,6 +13,8 @@ import { ThemesSelectionPage } from './pages/themes/ThemesSelection';
 import { GroupsPage } from './pages/groups/GroupsPage';
 import { GroupChatPage } from './pages/groups/GroupChatPage';
 import { SearchPage } from './pages/search/SearchPage';
+import { EventsPage } from './pages/events/EventsPage';
+import { EventDetailPage } from './pages/events/EventDetailPage';
 import { ReactNode, useEffect } from 'react';
 import { websocket } from './services/websocket';
 
@@ -167,6 +169,22 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <GroupChatPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/events"
+        element={
+          <ProtectedRoute>
+            <EventsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/events/:eventId"
+        element={
+          <ProtectedRoute>
+            <EventDetailPage />
           </ProtectedRoute>
         }
       />
