@@ -5,7 +5,6 @@ import {
   getMessages,
   sendMessage,
   markMessagesAsRead,
-  getUnreadCount,
 } from '../../services/message.service.js';
 import { sendMessageSchema, paginationSchema } from '../../utils/validators.js';
 
@@ -75,18 +74,6 @@ router.post(
   }
 );
 
-// GET /api/messages/unread-count
-router.get('/unread-count', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const count = await getUnreadCount(req.userId!);
-
-    res.json({
-      success: true,
-      data: { unreadCount: count },
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+// Note: /unread-count route moved to conversations.routes.ts to avoid /:id conflict
 
 export default router;

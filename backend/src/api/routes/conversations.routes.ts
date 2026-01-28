@@ -6,6 +6,7 @@ import {
   startConversation,
   archiveConversation,
 } from '../../services/conversation.service.js';
+import { getUnreadCount } from '../../services/message.service.js';
 import { startConversationSchema } from '../../utils/validators.js';
 
 const router = Router();
@@ -36,6 +37,20 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     res.status(201).json({
       success: true,
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/conversations/unread-count - MUST be before /:id route
+router.get('/unread-count', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const count = await getUnreadCount(req.userId!);
+
+    res.json({
+      success: true,
+      data: { unreadCount: count },
     });
   } catch (error) {
     next(error);
