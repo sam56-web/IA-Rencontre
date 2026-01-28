@@ -162,7 +162,7 @@ export function GroupChatPage() {
 
   return (
     <Layout hideNav>
-      <div className="h-[calc(100vh-2rem)] flex flex-col max-w-6xl mx-auto">
+      <div className="h-[calc(100vh-2rem)] flex flex-col max-w-6xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">

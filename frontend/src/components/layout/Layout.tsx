@@ -4,9 +4,20 @@ import { MobileNav } from './MobileNav';
 
 interface LayoutProps {
   children: ReactNode;
+  hideNav?: boolean;
 }
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, hideNav }: LayoutProps) {
+  if (hideNav) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="p-4">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
