@@ -18,6 +18,7 @@ import conversationsRoutes from './api/routes/conversations.routes.js';
 import messagesRoutes from './api/routes/messages.routes.js';
 import themesRoutes from './api/routes/themes.routes.js';
 import groupsRoutes from './api/routes/groups.routes.js';
+import searchRoutes from './api/routes/search.routes.js';
 
 const app = express();
 
@@ -62,6 +63,7 @@ app.use('/api/conversations', conversationsRoutes);
 app.use('/api/conversations', messagesRoutes); // Messages are nested under conversations
 app.use('/api/themes', themesRoutes);
 app.use('/api/groups', groupsRoutes);
+app.use('/api/search', searchRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

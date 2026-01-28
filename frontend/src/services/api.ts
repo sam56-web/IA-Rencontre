@@ -448,4 +448,66 @@ export const invitationsApi = {
   },
 };
 
+// ============ SEARCH ============
+
+export interface SearchFilters {
+  intentions?: string[];
+  themeIds?: string[];
+  minAge?: number;
+  maxAge?: number;
+  city?: string;
+  country?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface SearchProfileResult {
+  userId: string;
+  username: string;
+  age?: number;
+  locationCity?: string;
+  locationCountry: string;
+  currentLifePreview: string;
+  lookingFor: string;
+  intentions: string[];
+  themes: string[];
+  mainPhotoUrl?: string;
+  lastActiveCategory: 'now' | 'today' | 'week' | 'month' | 'older';
+  rank: number;
+}
+
+export interface SearchResult {
+  profiles: SearchProfileResult[];
+  total: number;
+  query: string;
+}
+
+export const searchApi = {
+  async search(query: string, filters?: SearchFilters): Promise<SearchResult> {
+    const params = new URLSearchParams({ q: query });
+    if (filters) {
+      if (filters.intentions?.length) params.set('intentions', filters.intentions.join(','));
+      if (filters.themeIds?.length) params.set('themeIds', filters.themeIds.join(','));
+      if (filters.minAge) params.set('minAge', filters.minAge.toString());
+      if (filters.maxAge) params.set('maxAge', filters.maxAge.toString());
+      if (filters.city) params.set('city', filters.city);
+      if (filters.country) params.set('country', filters.country);
+      if (filters.limit) params.set('limit', filters.limit.toString());
+      if (filters.offset) params.set('offset', filters.offset.toString());
+    }
+    const { data } = await api.get<ApiResponse<SearchResult>>(`/search?${params}`);
+    return data.data!;
+  },
+
+  async getSuggestions(query: string): Promise<string[]> {
+    const { data } = await api.get<ApiResponse<{ suggestions: string[] }>>(`/search/suggestions?q=${encodeURIComponent(query)}`);
+    return data.data!.suggestions;
+  },
+
+  async getPopularSearches(): Promise<string[]> {
+    const { data } = await api.get<ApiResponse<{ searches: string[] }>>('/search/popular');
+    return data.data!.searches;
+  },
+};
+
 export default api;

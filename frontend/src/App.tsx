@@ -12,6 +12,7 @@ import { ConversationPage } from './pages/messages/ConversationPage';
 import { ThemesSelectionPage } from './pages/themes/ThemesSelection';
 import { GroupsPage } from './pages/groups/GroupsPage';
 import { GroupChatPage } from './pages/groups/GroupChatPage';
+import { SearchPage } from './pages/search/SearchPage';
 import { ReactNode, useEffect } from 'react';
 import { websocket } from './services/websocket';
 
@@ -94,6 +95,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <DiscoverPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/search"
+        element={
+          <ProtectedRoute>
+            <SearchPage />
           </ProtectedRoute>
         }
       />
