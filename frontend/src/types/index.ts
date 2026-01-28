@@ -1,0 +1,231 @@
+// ============ ENUMS ============
+
+export const INTENTIONS = [
+  'romantic',
+  'friendship',
+  'discussions',
+  'creative_project',
+  'travel_experiences',
+  'not_sure_yet'
+] as const;
+
+export type Intention = typeof INTENTIONS[number];
+
+export const INTENTION_LABELS: Record<Intention, string> = {
+  romantic: 'Romantique',
+  friendship: 'Amitié',
+  discussions: 'Discussions',
+  creative_project: 'Projet créatif',
+  travel_experiences: 'Voyages',
+  not_sure_yet: 'Pas encore sûr(e)',
+};
+
+export const REACH_PREFERENCES = [
+  'local_only',
+  'national',
+  'international',
+  'no_preference'
+] as const;
+
+export type ReachPreference = typeof REACH_PREFERENCES[number];
+
+export const MODERATION_STATUSES = ['pending', 'approved', 'flagged', 'rejected'] as const;
+export type ModerationStatus = typeof MODERATION_STATUSES[number];
+
+// ============ USER ============
+
+export interface User {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  username: string;
+  birthYear?: number;
+  locationCity?: string;
+  locationCountry: string;
+  intentions: Intention[];
+  reachPreference: ReachPreference;
+  openToRemote: boolean;
+  languages: string[];
+  isPremium: boolean;
+  isPaused: boolean;
+  pauseUntil?: string;
+  quota?: {
+    weeklyInitiativesUsed: number;
+    weeklyInitiativesRemaining: number;
+    resetsAt: string;
+  };
+  lastActiveAt: string;
+  createdAt: string;
+}
+
+// ============ PROFILE ============
+
+export interface SectionPhotos {
+  currentLife?: string;
+  lookingFor?: string;
+  important?: string;
+  notLookingFor?: string;
+}
+
+export interface Profile {
+  id: string;
+  userId: string;
+  currentLife: string;
+  lookingFor: string;
+  whatsImportant: string;
+  notLookingFor?: string;
+  extractedThemes: string[];
+  wordCount: number;
+  completenessScore: number;
+  moderationStatus: ModerationStatus;
+  sectionPhotos?: SectionPhotos;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProfilePreview {
+  userId: string;
+  username: string;
+  age?: number;
+  location: { city?: string; country: string };
+  currentLifePreview: string;
+  lookingFor: string;
+  intentions: Intention[];
+  matchedIntentions: Intention[];
+  themes: string[];
+  openToRemote: boolean;
+  mainPhotoUrl?: string;
+  isLocal: boolean;
+  isSameCountry: boolean;
+  lastActiveCategory: 'now' | 'today' | 'week' | 'month' | 'older';
+}
+
+export interface ProfileFull extends ProfilePreview {
+  currentLife: string;
+  whatsImportant: string;
+  notLookingFor?: string;
+  photos: Photo[];
+  sectionPhotos?: SectionPhotos;
+  completenessScore: number;
+}
+
+// ============ PHOTO ============
+
+export interface Photo {
+  id: string;
+  userId: string;
+  url: string;
+  orderIndex: number;
+  caption?: string;
+  category: 'self' | 'place' | 'activity' | 'expressive';
+  createdAt: string;
+}
+
+// ============ DISCOVERY ============
+
+export type DiscoveryMode = 'around_me' | 'everywhere' | 'by_intention';
+
+export interface DiscoveryResponse {
+  profiles: ProfilePreview[];
+  total: number;
+  page: number;
+  hasMore: boolean;
+  zoneVitality?: ZoneVitality;
+}
+
+export interface ZoneVitality {
+  localCount: number;
+  nationalCount: number;
+  globalCount: number;
+  status: 'pioneer' | 'growing' | 'active' | 'vibrant';
+  message: string;
+}
+
+// ============ CONVERSATION ============
+
+export interface Conversation {
+  id: string;
+  otherUser: {
+    id: string;
+    username: string;
+    mainPhotoUrl?: string;
+    lastActiveCategory: ProfilePreview['lastActiveCategory'];
+  };
+  matchedIntentions: Intention[];
+  lastMessage?: {
+    content: string;
+    sentByMe: boolean;
+    createdAt: string;
+  };
+  unreadCount: number;
+  status: 'active' | 'archived' | 'blocked';
+  createdAt: string;
+}
+
+export interface ConversationDetail extends Conversation {
+  initialQuotedText?: string;
+  messageCount: number;
+}
+
+// ============ MESSAGE ============
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  quotedProfileText?: string;
+  isRead: boolean;
+  readAt?: string;
+  moderationStatus: ModerationStatus;
+  createdAt: string;
+}
+
+// ============ AUTH ============
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface SignupInput {
+  email: string;
+  username: string;
+  password: string;
+  locationCountry: string;
+  locationCity?: string;
+  intentions: Intention[];
+  reachPreference?: ReachPreference;
+  openToRemote?: boolean;
+  languages?: string[];
+  birthYear?: number;
+}
+
+// ============ API ============
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: ApiError;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  field?: string;
+  details?: { field: string; message: string }[];
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
