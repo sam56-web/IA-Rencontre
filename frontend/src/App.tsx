@@ -9,6 +9,9 @@ import { CreateProfilePage } from './pages/profile/CreateProfilePage';
 import { ProfileEditPage } from './pages/profile/ProfileEditPage';
 import { MessagesPage } from './pages/messages/MessagesPage';
 import { ConversationPage } from './pages/messages/ConversationPage';
+import { ThemesSelectionPage } from './pages/themes/ThemesSelection';
+import { GroupsPage } from './pages/groups/GroupsPage';
+import { GroupChatPage } from './pages/groups/GroupChatPage';
 import { ReactNode, useEffect } from 'react';
 import { websocket } from './services/websocket';
 
@@ -131,6 +134,30 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <ConversationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/themes"
+        element={
+          <ProtectedRoute>
+            <ThemesSelectionPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/groups"
+        element={
+          <ProtectedRoute>
+            <GroupsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/groups/:groupId"
+        element={
+          <ProtectedRoute>
+            <GroupChatPage />
           </ProtectedRoute>
         }
       />

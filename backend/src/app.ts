@@ -16,6 +16,8 @@ import photosRoutes from './api/routes/photos.routes.js';
 import discoveryRoutes from './api/routes/discovery.routes.js';
 import conversationsRoutes from './api/routes/conversations.routes.js';
 import messagesRoutes from './api/routes/messages.routes.js';
+import themesRoutes from './api/routes/themes.routes.js';
+import groupsRoutes from './api/routes/groups.routes.js';
 
 const app = express();
 
@@ -58,6 +60,8 @@ app.use('/api/photos', photosRoutes);
 app.use('/api/discover', discoveryRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/conversations', messagesRoutes); // Messages are nested under conversations
+app.use('/api/themes', themesRoutes);
+app.use('/api/groups', groupsRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

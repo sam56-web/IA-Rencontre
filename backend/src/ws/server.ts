@@ -12,10 +12,14 @@ import { handlePresence, setUserOnline, setUserOffline } from './handlers/presen
 interface AuthenticatedWebSocket extends WebSocket {
   userId: string;
   isAlive: boolean;
+  groupRooms: Set<string>; // Group IDs the user has joined
 }
 
 // Store connected clients
 const clients = new Map<string, Set<AuthenticatedWebSocket>>();
+
+// Store group rooms - maps groupId to set of userIds
+const groupRooms = new Map<string, Set<string>>();
 
 export function createWebSocketServer(server: http.Server): WebSocketServer {
   const wss = new WebSocketServer({ server, path: '/ws' });
@@ -40,6 +44,7 @@ export function createWebSocketServer(server: http.Server): WebSocketServer {
   wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
     const authWs = ws as AuthenticatedWebSocket;
     authWs.isAlive = true;
+    authWs.groupRooms = new Set();
 
     // Authenticate
     const url = new URL(req.url || '', `http://${req.headers.host}`);
@@ -112,6 +117,17 @@ export function createWebSocketServer(server: http.Server): WebSocketServer {
 
     // Handle close
     ws.on('close', async () => {
+      // Clean up group rooms
+      authWs.groupRooms.forEach((groupId) => {
+        const room = groupRooms.get(groupId);
+        if (room) {
+          room.delete(authWs.userId);
+          if (room.size === 0) {
+            groupRooms.delete(groupId);
+          }
+        }
+      });
+
       const userClients = clients.get(authWs.userId);
       if (userClients) {
         userClients.delete(authWs);
@@ -156,6 +172,18 @@ async function handleIncomingMessage(
       // Mark messages as read - handled via REST API for simplicity
       break;
 
+    case 'join_group':
+      handleJoinGroupRoom(ws, message.payload as { groupId: string });
+      break;
+
+    case 'leave_group':
+      handleLeaveGroupRoom(ws, message.payload as { groupId: string });
+      break;
+
+    case 'group_typing':
+      handleGroupTyping(ws, message.payload as { groupId: string; isTyping: boolean });
+      break;
+
     case 'ping':
       send(ws, {
         type: 'pong',
@@ -196,4 +224,81 @@ export function isUserConnected(userId: string): boolean {
   return clients.has(userId) && clients.get(userId)!.size > 0;
 }
 
-export { clients };
+// ============ GROUP ROOM FUNCTIONS ============
+
+function handleJoinGroupRoom(ws: AuthenticatedWebSocket, payload: { groupId: string }): void {
+  const { groupId } = payload;
+
+  // Add to WebSocket's group rooms
+  ws.groupRooms.add(groupId);
+
+  // Add to global group rooms
+  if (!groupRooms.has(groupId)) {
+    groupRooms.set(groupId, new Set());
+  }
+  groupRooms.get(groupId)!.add(ws.userId);
+
+  send(ws, {
+    type: 'group_member_joined',
+    payload: { groupId, userId: ws.userId },
+    timestamp: new Date().toISOString(),
+  });
+}
+
+function handleLeaveGroupRoom(ws: AuthenticatedWebSocket, payload: { groupId: string }): void {
+  const { groupId } = payload;
+
+  // Remove from WebSocket's group rooms
+  ws.groupRooms.delete(groupId);
+
+  // Remove from global group rooms
+  const room = groupRooms.get(groupId);
+  if (room) {
+    room.delete(ws.userId);
+    if (room.size === 0) {
+      groupRooms.delete(groupId);
+    }
+  }
+}
+
+function handleGroupTyping(ws: AuthenticatedWebSocket, payload: { groupId: string; isTyping: boolean }): void {
+  const { groupId, isTyping } = payload;
+
+  // Broadcast to all users in the group except sender
+  sendToGroupExcept(groupId, ws.userId, {
+    type: 'group_typing',
+    payload: { groupId, userId: ws.userId, isTyping },
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export function sendToGroup(groupId: string, message: WSMessage): void {
+  const room = groupRooms.get(groupId);
+  if (!room) return;
+
+  room.forEach((userId) => {
+    sendToUser(userId, message);
+  });
+}
+
+export function sendToGroupExcept(groupId: string, exceptUserId: string, message: WSMessage): void {
+  const room = groupRooms.get(groupId);
+  if (!room) return;
+
+  room.forEach((userId) => {
+    if (userId !== exceptUserId) {
+      sendToUser(userId, message);
+    }
+  });
+}
+
+export function notifyGroupMembers(groupId: string, memberIds: string[], message: WSMessage): void {
+  // Notify all connected members of a group, regardless of whether they're in the room
+  memberIds.forEach((userId) => {
+    if (isUserConnected(userId)) {
+      sendToUser(userId, message);
+    }
+  });
+}
+
+export { clients, groupRooms };

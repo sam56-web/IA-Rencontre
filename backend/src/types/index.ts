@@ -330,6 +330,12 @@ export type WSMessageType =
   | 'typing_stop'
   | 'typing_update'
   | 'presence_update'
+  | 'group_message_new'
+  | 'group_message_sent'
+  | 'group_typing'
+  | 'group_member_joined'
+  | 'group_member_left'
+  | 'group_invitation'
   | 'error'
   | 'ping'
   | 'pong';
@@ -338,6 +344,114 @@ export interface WSMessage<T = unknown> {
   type: WSMessageType;
   payload: T;
   timestamp: string;
+}
+
+// ============ THEMES ============
+
+export type ThemeCategory = 'intellectual' | 'creative' | 'social' | 'lifestyle';
+
+export interface Theme {
+  id: string;
+  slug: string;
+  name: string;
+  icon?: string;
+  category?: ThemeCategory;
+}
+
+export interface UserTheme {
+  userId: string;
+  themeId: string;
+  createdAt: Date;
+}
+
+// ============ GROUPS ============
+
+export type GroupRole = 'admin' | 'moderator' | 'member';
+export type InvitationStatus = 'pending' | 'accepted' | 'declined';
+
+export interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  photoUrl?: string;
+  themeId?: string;
+  creatorId: string;
+  isPublic: boolean;
+  maxMembers: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface GroupView {
+  id: string;
+  name: string;
+  description?: string;
+  photoUrl?: string;
+  theme?: {
+    id: string;
+    name: string;
+    slug: string;
+    icon?: string;
+  };
+  isPublic: boolean;
+  memberCount: number;
+  userRole: GroupRole | null;
+  isMember: boolean;
+  lastMessage?: {
+    content: string;
+    createdAt: Date;
+  };
+}
+
+export interface GroupDetail extends GroupView {
+  creatorId: string;
+  maxMembers: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface GroupMember {
+  groupId: string;
+  userId: string;
+  username: string;
+  photoUrl?: string;
+  role: GroupRole;
+  joinedAt: Date;
+}
+
+export interface GroupInvitation {
+  id: string;
+  groupId: string;
+  inviterId: string;
+  inviteeId: string;
+  status: InvitationStatus;
+  createdAt: Date;
+}
+
+export interface GroupMessage {
+  id: string;
+  groupId: string;
+  senderId: string;
+  senderUsername: string;
+  senderPhotoUrl?: string;
+  content: string;
+  createdAt: Date;
+}
+
+export interface CreateGroupInput {
+  name: string;
+  description?: string;
+  themeId?: string;
+  isPublic?: boolean;
+  maxMembers?: number;
+}
+
+export interface UpdateGroupInput {
+  name?: string;
+  description?: string;
+  themeId?: string | null;
+  isPublic?: boolean;
+  maxMembers?: number;
 }
 
 // ============ EXPRESS EXTENSIONS ============

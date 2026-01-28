@@ -207,6 +207,95 @@ export interface SignupInput {
   birthYear?: number;
 }
 
+// ============ THEMES ============
+
+export type ThemeCategory = 'intellectual' | 'creative' | 'social' | 'lifestyle';
+
+export interface Theme {
+  id: string;
+  slug: string;
+  name: string;
+  icon?: string;
+  category?: ThemeCategory;
+}
+
+export const THEME_CATEGORY_LABELS: Record<ThemeCategory, string> = {
+  intellectual: 'Intellectuel',
+  creative: 'Créatif',
+  social: 'Social',
+  lifestyle: 'Style de vie',
+};
+
+// ============ GROUPS ============
+
+export type GroupRole = 'admin' | 'moderator' | 'member';
+export type InvitationStatus = 'pending' | 'accepted' | 'declined';
+
+export interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  photoUrl?: string;
+  theme?: {
+    id: string;
+    name: string;
+    slug: string;
+    icon?: string;
+  };
+  isPublic: boolean;
+  memberCount: number;
+  userRole: GroupRole | null;
+  isMember: boolean;
+  lastMessage?: {
+    content: string;
+    createdAt: string;
+  };
+}
+
+export interface GroupDetail extends Group {
+  creatorId: string;
+  maxMembers: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GroupMember {
+  groupId: string;
+  userId: string;
+  username: string;
+  photoUrl?: string;
+  role: GroupRole;
+  joinedAt: string;
+}
+
+export interface GroupInvitation {
+  id: string;
+  groupId: string;
+  inviterId: string;
+  inviteeId: string;
+  status: InvitationStatus;
+  createdAt: string;
+  inviterUsername: string;
+  group: Group;
+}
+
+export interface GroupMessage {
+  id: string;
+  groupId: string;
+  senderId: string;
+  senderUsername: string;
+  senderPhotoUrl?: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CreateGroupInput {
+  name: string;
+  description?: string;
+  themeId?: string;
+  isPublic?: boolean;
+}
+
 // ============ API ============
 
 export interface ApiResponse<T> {

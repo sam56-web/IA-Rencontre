@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -9,7 +10,7 @@ import { useProfile } from '../../hooks/useProfile';
 import { useStartConversation } from '../../hooks/useConversations';
 import { useAuthStore } from '../../stores/auth.store';
 import { INTENTION_LABELS } from '../../types';
-import { getUploadUrl } from '../../services/api';
+import { getUploadUrl, themesApi } from '../../services/api';
 
 export function ProfilePage() {
   const { userId } = useParams<{ userId: string }>();
@@ -24,6 +25,13 @@ export function ProfilePage() {
 
   const { data: profile, isLoading } = useProfile(profileUserId || '');
   const startConversation = useStartConversation();
+
+  // Load user themes for own profile
+  const { data: userThemes } = useQuery({
+    queryKey: ['themes', 'me'],
+    queryFn: themesApi.getMyThemes,
+    enabled: isOwnProfile,
+  });
 
   const handleSendMessage = () => {
     if (!profile || !message.trim()) return;
@@ -136,6 +144,42 @@ export function ProfilePage() {
             </span>
           ))}
         </div>
+
+        {/* User themes (own profile only) */}
+        {isOwnProfile && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                Mes centres d'interet
+              </h3>
+              <button
+                onClick={() => navigate('/themes')}
+                className="text-sm text-primary-600 hover:text-primary-700"
+              >
+                Modifier
+              </button>
+            </div>
+            {userThemes && userThemes.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {userThemes.map((theme) => (
+                  <span
+                    key={theme.id}
+                    className="px-3 py-1 bg-warm-100 text-warm-700 rounded-full text-sm"
+                  >
+                    {theme.name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => navigate('/themes')}
+                className="text-gray-500 text-sm hover:text-primary-600"
+              >
+                + Ajouter des centres d'interet
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Profile text blocks */}
         <div className="space-y-6">

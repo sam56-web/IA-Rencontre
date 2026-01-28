@@ -16,6 +16,13 @@ import type {
   ZoneVitality,
   DiscoveryMode,
   Intention,
+  Theme,
+  Group,
+  GroupDetail,
+  GroupMember,
+  GroupInvitation,
+  GroupMessage,
+  CreateGroupInput,
 } from '../types';
 import { useAuthStore } from '../stores/auth.store';
 
@@ -310,6 +317,134 @@ export const moderationApi = {
     reason: string;
   }): Promise<void> {
     await api.post('/reports', input);
+  },
+};
+
+// ============ THEMES ============
+
+export const themesApi = {
+  async getAllThemes(): Promise<Theme[]> {
+    const { data } = await api.get<ApiResponse<{ themes: Theme[] }>>('/themes');
+    return data.data!.themes;
+  },
+
+  async getThemesByCategory(): Promise<Record<string, Theme[]>> {
+    const { data } = await api.get<ApiResponse<{ themesByCategory: Record<string, Theme[]> }>>('/themes/by-category');
+    return data.data!.themesByCategory;
+  },
+
+  async getMyThemes(): Promise<Theme[]> {
+    const { data } = await api.get<ApiResponse<{ themes: Theme[] }>>('/themes/me');
+    return data.data!.themes;
+  },
+
+  async updateMyThemes(themeIds: string[]): Promise<Theme[]> {
+    const { data } = await api.put<ApiResponse<{ themes: Theme[] }>>('/themes/me', { themeIds });
+    return data.data!.themes;
+  },
+};
+
+// ============ GROUPS ============
+
+export const groupsApi = {
+  async createGroup(input: CreateGroupInput): Promise<Group> {
+    const { data } = await api.post<ApiResponse<{ group: Group }>>('/groups', input);
+    return data.data!.group;
+  },
+
+  async getMyGroups(): Promise<Group[]> {
+    const { data } = await api.get<ApiResponse<{ groups: Group[] }>>('/groups', { params: { type: 'mine' } });
+    return data.data!.groups;
+  },
+
+  async getPublicGroups(limit = 20, offset = 0): Promise<{ groups: Group[]; total: number; hasMore: boolean }> {
+    const { data } = await api.get<ApiResponse<{ groups: Group[]; total: number; hasMore: boolean }>>('/groups', {
+      params: { type: 'discover', limit, offset },
+    });
+    return data.data!;
+  },
+
+  async getGroup(groupId: string): Promise<GroupDetail> {
+    const { data } = await api.get<ApiResponse<{ group: GroupDetail }>>(`/groups/${groupId}`);
+    return data.data!.group;
+  },
+
+  async updateGroup(groupId: string, input: Partial<CreateGroupInput>): Promise<Group> {
+    const { data } = await api.put<ApiResponse<{ group: Group }>>(`/groups/${groupId}`, input);
+    return data.data!.group;
+  },
+
+  async uploadGroupPhoto(groupId: string, file: File): Promise<Group> {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const { data } = await api.post<ApiResponse<{ group: Group }>>(`/groups/${groupId}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data.data!.group;
+  },
+
+  async deleteGroup(groupId: string): Promise<void> {
+    await api.delete(`/groups/${groupId}`);
+  },
+
+  async joinGroup(groupId: string): Promise<void> {
+    await api.post(`/groups/${groupId}/join`);
+  },
+
+  async leaveGroup(groupId: string): Promise<void> {
+    await api.post(`/groups/${groupId}/leave`);
+  },
+
+  async getMembers(groupId: string): Promise<GroupMember[]> {
+    const { data } = await api.get<ApiResponse<{ members: GroupMember[] }>>(`/groups/${groupId}/members`);
+    return data.data!.members;
+  },
+
+  async kickMember(groupId: string, userId: string): Promise<void> {
+    await api.delete(`/groups/${groupId}/members/${userId}`);
+  },
+
+  async updateMemberRole(groupId: string, userId: string, role: 'moderator' | 'member'): Promise<void> {
+    await api.put(`/groups/${groupId}/members/${userId}/role`, { role });
+  },
+
+  async inviteUsers(groupId: string, userIds: string[]): Promise<{ invitedCount: number }> {
+    const { data } = await api.post<ApiResponse<{ invitedCount: number }>>(`/groups/${groupId}/invite`, { userIds });
+    return data.data!;
+  },
+
+  async getMessages(groupId: string, limit = 50, before?: string): Promise<{ messages: GroupMessage[]; hasMore: boolean }> {
+    const { data } = await api.get<ApiResponse<{ messages: GroupMessage[]; hasMore: boolean }>>(`/groups/${groupId}/messages`, {
+      params: { limit, before },
+    });
+    return data.data!;
+  },
+
+  async sendMessage(groupId: string, content: string): Promise<GroupMessage> {
+    const { data } = await api.post<ApiResponse<{ message: GroupMessage }>>(`/groups/${groupId}/messages`, { content });
+    return data.data!.message;
+  },
+};
+
+// ============ INVITATIONS ============
+
+export const invitationsApi = {
+  async getPendingInvitations(): Promise<GroupInvitation[]> {
+    const { data } = await api.get<ApiResponse<{ invitations: GroupInvitation[] }>>('/groups/invitations/pending');
+    return data.data!.invitations;
+  },
+
+  async getPendingCount(): Promise<number> {
+    const { data } = await api.get<ApiResponse<{ count: number }>>('/groups/invitations/count');
+    return data.data!.count;
+  },
+
+  async acceptInvitation(invitationId: string): Promise<void> {
+    await api.post(`/groups/invitations/${invitationId}/accept`);
+  },
+
+  async declineInvitation(invitationId: string): Promise<void> {
+    await api.post(`/groups/invitations/${invitationId}/decline`);
   },
 };
 
