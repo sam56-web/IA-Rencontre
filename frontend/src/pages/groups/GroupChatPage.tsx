@@ -68,10 +68,10 @@ export function GroupChatPage() {
   // Join WebSocket room on mount
   useEffect(() => {
     if (groupId && group?.isMember) {
-      websocket.send({ type: 'join_group', payload: { groupId } });
+      websocket.joinGroup(groupId);
 
       return () => {
-        websocket.send({ type: 'leave_group', payload: { groupId } });
+        websocket.leaveGroup(groupId);
       };
     }
   }, [groupId, group?.isMember]);
@@ -368,7 +368,7 @@ interface MemberItemProps {
   currentUserRole: string | null;
 }
 
-function MemberItem({ member, currentUserRole }: MemberItemProps) {
+function MemberItem({ member }: MemberItemProps) {
   return (
     <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100">
       {member.photoUrl ? (

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/Button';
-import { Card, CardContent } from '../../components/ui/Card';
 import { themesApi } from '../../services/api';
 import type { Theme, ThemeCategory } from '../../types';
 import { THEME_CATEGORY_LABELS } from '../../types';

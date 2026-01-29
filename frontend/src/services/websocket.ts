@@ -10,6 +10,8 @@ interface WebSocketService {
   disconnect: () => void;
   sendMessage: (conversationId: string, content: string, quotedProfileText?: string, tempId?: string) => void;
   sendTyping: (conversationId: string, isTyping: boolean) => void;
+  joinGroup: (groupId: string) => void;
+  leaveGroup: (groupId: string) => void;
   onMessage: (handler: MessageHandler) => () => void;
   onMessageSent: (handler: (tempId: string, message: Message) => void) => () => void;
   onTyping: (handler: TypingHandler) => () => void;
@@ -175,6 +177,20 @@ class WebSocketClient implements WebSocketService {
     this.send({
       type: 'typing',
       payload: { conversationId, isTyping },
+    });
+  }
+
+  joinGroup(groupId: string): void {
+    this.send({
+      type: 'join_group',
+      payload: { groupId },
+    });
+  }
+
+  leaveGroup(groupId: string): void {
+    this.send({
+      type: 'leave_group',
+      payload: { groupId },
     });
   }
 

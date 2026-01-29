@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Layout } from '../../components/layout/Layout';
@@ -13,14 +13,12 @@ const INTENTIONS_LIST: Intention[] = [
   'friendship',
   'discussions',
   'creative_project',
-  'professional',
   'travel_experiences',
   'not_sure_yet',
 ];
 
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   // Get query from URL
   const query = searchParams.get('q') || '';

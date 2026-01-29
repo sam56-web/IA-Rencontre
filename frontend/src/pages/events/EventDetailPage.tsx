@@ -41,7 +41,7 @@ export function EventDetailPage() {
   const startsAt = new Date(event.startsAt);
   const endsAt = event.endsAt ? new Date(event.endsAt) : null;
   const isPast = startsAt < new Date();
-  const isFull = event.maxParticipants && event.participantCount >= event.maxParticipants;
+  const isFull = !!(event.maxParticipants && event.participantCount >= event.maxParticipants);
 
   const handleJoin = async (status: 'going' | 'maybe') => {
     await joinEvent.mutateAsync({ eventId: event.id, status });

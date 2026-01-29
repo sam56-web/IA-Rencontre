@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invitationsApi, getUploadUrl } from '../../services/api';
 import { Button } from '../ui/Button';
-import clsx from 'clsx';
 
 export function InvitationsBadge() {
   const navigate = useNavigate();

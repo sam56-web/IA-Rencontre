@@ -12,7 +12,6 @@ interface SectionPhotoGridProps {
 }
 
 export function SectionPhotoGrid({
-  section,
   photos,
   maxPhotos,
   onUpload,

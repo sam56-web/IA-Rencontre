@@ -76,7 +76,7 @@ export function ProfileEditPage() {
   });
 
   // Fetch section photos
-  const { data: fetchedSectionPhotos, refetch: refetchSectionPhotos } = useQuery({
+  const { data: fetchedSectionPhotos } = useQuery({
     queryKey: ['photos', 'section'],
     queryFn: photosApi.getSectionPhotos,
   });

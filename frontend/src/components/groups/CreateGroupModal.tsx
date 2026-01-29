@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { groupsApi, themesApi } from '../../services/api';
-import type { Group, Theme } from '../../types';
+import type { Group } from '../../types';
 
 interface CreateGroupModalProps {
   isOpen: boolean;
