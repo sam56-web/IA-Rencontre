@@ -41,11 +41,17 @@ function UserMarker({ user }: { user: GlobeUser }) {
   }, [user.latitude, user.longitude]);
 
   return (
-    <group
-      position={position}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
-    >
+    <group position={position}>
+      {/* Invisible larger sphere for hover detection */}
+      <Sphere
+        args={[BASE_USER_SIZE * 2.5, 8, 8]}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+        visible={false}
+      >
+        <meshBasicMaterial transparent opacity={0} />
+      </Sphere>
+
       {/* Main golden point */}
       <Sphere args={[BASE_USER_SIZE, 16, 16]}>
         <meshStandardMaterial color="#f6e05e" emissive="#f6e05e" emissiveIntensity={0.6} />
@@ -56,9 +62,14 @@ function UserMarker({ user }: { user: GlobeUser }) {
         <meshStandardMaterial color="#f6e05e" transparent opacity={0.25} />
       </Sphere>
 
-      {/* Label only on hover */}
+      {/* Label only on hover - with pointerEvents none to prevent flickering */}
       {hovered && (
-        <Html position={[0, 0.05, 0]} center style={{ pointerEvents: 'none' }}>
+        <Html
+          position={[0, 0.05, 0]}
+          center
+          occlude={false}
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
           <div className="bg-black/80 text-yellow-400 text-[10px] px-2 py-1 rounded font-medium whitespace-nowrap">
             Vous {user.city ? `(${user.city})` : ''}
           </div>
@@ -115,14 +126,19 @@ function ConnectionMarker({
 
   return (
     <group position={position}>
-      {/* Main sphere */}
+      {/* Invisible larger sphere for hover detection - prevents flickering */}
       <Sphere
-        ref={meshRef}
-        args={[size, 12, 12]}
+        args={[size * 2.5, 8, 8]}
         onClick={onClick}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
+        visible={false}
       >
+        <meshBasicMaterial transparent opacity={0} />
+      </Sphere>
+
+      {/* Main sphere */}
+      <Sphere ref={meshRef} args={[size, 12, 12]}>
         <meshStandardMaterial
           color={connection.themeColor || '#ffffff'}
           emissive={connection.themeColor || '#ffffff'}
@@ -155,9 +171,14 @@ function ConnectionMarker({
         </Sphere>
       )}
 
-      {/* Hover/Selected tooltip */}
+      {/* Hover/Selected tooltip - with pointerEvents none to prevent flickering */}
       {(hovered || isSelected) && (
-        <Html center distanceFactor={2}>
+        <Html
+          center
+          distanceFactor={2}
+          occlude={false}
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
           <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-sm whitespace-nowrap">
             <div className="font-bold">{connection.displayName}</div>
             <div className="text-gray-300 text-xs">
@@ -217,14 +238,13 @@ function ConnectionArc({
   );
 }
 
-// Rotating globe with all markers as children
-function RotatingGlobe({
+// Static globe with all markers as children (NO auto-rotation)
+function StaticGlobe({
   user,
   connections,
   onConnectionClick,
   selectedConnection,
 }: Globe3DProps) {
-  const groupRef = useRef<THREE.Group>(null);
   const earthTexture = useTexture(EARTH_TEXTURE_URL);
 
   // Improve texture rendering
@@ -232,15 +252,10 @@ function RotatingGlobe({
     earthTexture.colorSpace = THREE.SRGBColorSpace;
   }, [earthTexture]);
 
-  // Rotate the entire group (globe + markers)
-  useFrame(() => {
-    if (groupRef.current && !selectedConnection) {
-      groupRef.current.rotation.y += 0.001;
-    }
-  });
+  // NO auto-rotation - user controls rotation manually via OrbitControls
 
   return (
-    <group ref={groupRef}>
+    <group>
       {/* Earth with texture */}
       <Sphere args={[GLOBE_RADIUS, 64, 64]}>
         <meshStandardMaterial
@@ -260,10 +275,10 @@ function RotatingGlobe({
         />
       </Sphere>
 
-      {/* User marker - child of rotating group */}
+      {/* User marker */}
       <UserMarker user={user} />
 
-      {/* Connection arcs - children of rotating group */}
+      {/* Connection arcs */}
       {connections.map(conn => (
         <ConnectionArc
           key={`arc-${conn.id}`}
@@ -273,7 +288,7 @@ function RotatingGlobe({
         />
       ))}
 
-      {/* Connection markers - children of rotating group */}
+      {/* Connection markers */}
       {connections.map(conn => (
         <ConnectionMarker
           key={conn.id}
@@ -300,15 +315,15 @@ function GlobeScene({
       <directionalLight position={[5, 3, 5]} intensity={1.2} />
       <pointLight position={[-10, -10, -10]} intensity={0.3} color="#87CEEB" />
 
-      {/* Rotating globe with all markers as children */}
-      <RotatingGlobe
+      {/* Static globe - NO auto-rotation */}
+      <StaticGlobe
         user={user}
         connections={connections}
         onConnectionClick={onConnectionClick}
         selectedConnection={selectedConnection}
       />
 
-      {/* Controls */}
+      {/* Controls - user rotates manually */}
       <OrbitControls
         enablePan={false}
         enableZoom={true}
@@ -316,6 +331,7 @@ function GlobeScene({
         maxDistance={5}
         zoomSpeed={0.8}
         rotateSpeed={0.5}
+        autoRotate={false}
       />
     </>
   );
