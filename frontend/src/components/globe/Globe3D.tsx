@@ -1,5 +1,5 @@
 import { useRef, useMemo, useState, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Sphere, Html, Line, useTexture, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import type { GlobeConnection, GlobeUser } from '../../types/globe';
@@ -15,7 +15,12 @@ interface Globe3DProps {
 const GLOBE_RADIUS = 1;
 const EARTH_TEXTURE_URL = 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg';
 
-// Loading indicator while texture loads
+// Base sizes (will be scaled by zoom)
+const BASE_USER_SIZE = 0.012;
+const BASE_CONNECTION_SIZE = 0.006;
+const BASE_INDICATOR_SIZE = 0.003;
+
+// Loading indicator
 function Loader() {
   const { progress } = useProgress();
   return (
@@ -27,52 +32,33 @@ function Loader() {
   );
 }
 
-// Earth globe with realistic texture
-function EarthGlobe() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const earthTexture = useTexture(EARTH_TEXTURE_URL);
-
-  // Improve texture rendering
-  earthTexture.colorSpace = THREE.SRGBColorSpace;
+// Hook to get zoom-based scale factor
+function useZoomScale() {
+  const { camera } = useThree();
+  const [scale, setScale] = useState(1);
 
   useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += 0.0005;
-    }
+    const distance = camera.position.length();
+    // Scale inversely with distance: closer = smaller points, farther = larger points
+    // Reference distance is 3 (default camera position)
+    const newScale = distance / 3;
+    setScale(newScale);
   });
 
-  return (
-    <group>
-      {/* Earth with texture */}
-      <Sphere ref={meshRef} args={[GLOBE_RADIUS, 64, 64]}>
-        <meshStandardMaterial
-          map={earthTexture}
-          metalness={0.1}
-          roughness={0.8}
-        />
-      </Sphere>
-
-      {/* Subtle atmosphere glow */}
-      <Sphere args={[GLOBE_RADIUS * 1.015, 64, 64]}>
-        <meshBasicMaterial
-          color="#4a9eff"
-          transparent
-          opacity={0.08}
-          side={THREE.BackSide}
-        />
-      </Sphere>
-    </group>
-  );
+  return scale;
 }
 
 // User marker with hover-only label
-function UserMarker({ user }: { user: GlobeUser }) {
+function UserMarker({ user, zoomScale }: { user: GlobeUser; zoomScale: number }) {
   const [hovered, setHovered] = useState(false);
 
   const position = useMemo(() => {
-    const p = latLonToVector3(user.latitude, user.longitude, GLOBE_RADIUS * 1.02);
+    const p = latLonToVector3(user.latitude, user.longitude, GLOBE_RADIUS * 1.01);
     return new THREE.Vector3(p.x, p.y, p.z);
   }, [user.latitude, user.longitude]);
+
+  const size = BASE_USER_SIZE * zoomScale;
+  const haloSize = size * 1.5;
 
   return (
     <group
@@ -81,18 +67,18 @@ function UserMarker({ user }: { user: GlobeUser }) {
       onPointerOut={() => setHovered(false)}
     >
       {/* Main golden point */}
-      <Sphere args={[0.018, 16, 16]}>
-        <meshStandardMaterial color="#f6e05e" emissive="#f6e05e" emissiveIntensity={0.5} />
+      <Sphere args={[size, 16, 16]}>
+        <meshStandardMaterial color="#f6e05e" emissive="#f6e05e" emissiveIntensity={0.6} />
       </Sphere>
 
       {/* Halo */}
-      <Sphere args={[0.028, 16, 16]}>
-        <meshStandardMaterial color="#f6e05e" transparent opacity={0.3} />
+      <Sphere args={[haloSize, 16, 16]}>
+        <meshStandardMaterial color="#f6e05e" transparent opacity={0.25} />
       </Sphere>
 
-      {/* Label only on hover - much smaller */}
+      {/* Label only on hover */}
       {hovered && (
-        <Html position={[0, 0.05, 0]} center style={{ pointerEvents: 'none' }}>
+        <Html position={[0, size * 3, 0]} center style={{ pointerEvents: 'none' }}>
           <div className="bg-black/80 text-yellow-400 text-[10px] px-2 py-1 rounded font-medium whitespace-nowrap">
             Vous {user.city ? `(${user.city})` : ''}
           </div>
@@ -102,46 +88,49 @@ function UserMarker({ user }: { user: GlobeUser }) {
   );
 }
 
-// Connection marker with overlap offset
+// Connection marker
 function ConnectionMarker({
   connection,
   onClick,
   isSelected,
+  zoomScale,
 }: {
   connection: GlobeConnection;
   onClick?: () => void;
   isSelected?: boolean;
+  zoomScale: number;
 }) {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef<THREE.Mesh>(null);
 
-  // Position with slight offset to avoid overlap
   const position = useMemo(() => {
     const basePos = latLonToVector3(
       connection.latitude,
       connection.longitude,
-      GLOBE_RADIUS * 1.02
+      GLOBE_RADIUS * 1.01
     );
 
     // Deterministic offset based on connection ID
     const hash = connection.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const offsetAngle = (hash % 360) * (Math.PI / 180);
-    const offsetDist = 0.015;
+    const offsetDist = 0.01;
 
     const pos = new THREE.Vector3(basePos.x, basePos.y, basePos.z);
     pos.x += Math.cos(offsetAngle) * offsetDist;
     pos.z += Math.sin(offsetAngle) * offsetDist;
 
-    return pos.normalize().multiplyScalar(GLOBE_RADIUS * 1.02);
+    return pos.normalize().multiplyScalar(GLOBE_RADIUS * 1.01);
   }, [connection.latitude, connection.longitude, connection.id]);
 
-  // Reduced size
-  const scale = useMemo(() => {
-    const base = 0.008;
-    const intensityBonus = (connection.connectionIntensity / 100) * 0.006;
-    const unreadBonus = connection.unreadMessages > 0 ? 0.004 : 0;
-    return base + intensityBonus + unreadBonus;
+  // Size based on intensity, scaled by zoom
+  const baseSize = useMemo(() => {
+    const intensityBonus = (connection.connectionIntensity / 100) * 0.003;
+    const unreadBonus = connection.unreadMessages > 0 ? 0.002 : 0;
+    return BASE_CONNECTION_SIZE + intensityBonus + unreadBonus;
   }, [connection.connectionIntensity, connection.unreadMessages]);
+
+  const size = baseSize * zoomScale;
+  const indicatorSize = BASE_INDICATOR_SIZE * zoomScale;
 
   useFrame(() => {
     if (meshRef.current && (hovered || isSelected)) {
@@ -154,7 +143,7 @@ function ConnectionMarker({
       {/* Main sphere */}
       <Sphere
         ref={meshRef}
-        args={[scale, 16, 16]}
+        args={[size, 12, 12]}
         onClick={onClick}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
@@ -162,13 +151,13 @@ function ConnectionMarker({
         <meshStandardMaterial
           color={connection.themeColor || '#ffffff'}
           emissive={connection.themeColor || '#ffffff'}
-          emissiveIntensity={hovered || isSelected ? 0.8 : 0.3}
+          emissiveIntensity={hovered || isSelected ? 0.8 : 0.4}
         />
       </Sphere>
 
       {/* Halo for selected/hovered */}
       {(hovered || isSelected) && (
-        <Sphere args={[scale * 1.3, 12, 12]}>
+        <Sphere args={[size * 1.4, 10, 10]}>
           <meshStandardMaterial
             color={connection.themeColor || '#ffffff'}
             transparent
@@ -179,21 +168,21 @@ function ConnectionMarker({
 
       {/* Online indicator */}
       {connection.isOnline && (
-        <Sphere args={[0.004, 8, 8]} position={[scale + 0.008, scale + 0.008, 0]}>
+        <Sphere args={[indicatorSize, 8, 8]} position={[size * 1.8, size * 1.8, 0]}>
           <meshStandardMaterial color="#48bb78" emissive="#48bb78" emissiveIntensity={1} />
         </Sphere>
       )}
 
       {/* Unread messages indicator */}
       {connection.unreadMessages > 0 && (
-        <Sphere args={[0.005, 8, 8]} position={[-(scale + 0.008), scale + 0.008, 0]}>
+        <Sphere args={[indicatorSize * 1.2, 8, 8]} position={[-(size * 1.8), size * 1.8, 0]}>
           <meshStandardMaterial color="#fc8181" emissive="#fc8181" emissiveIntensity={1} />
         </Sphere>
       )}
 
       {/* Hover/Selected tooltip */}
       {(hovered || isSelected) && (
-        <Html center distanceFactor={2.5}>
+        <Html center distanceFactor={2}>
           <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-sm whitespace-nowrap">
             <div className="font-bold">{connection.displayName}</div>
             <div className="text-gray-300 text-xs">
@@ -216,15 +205,17 @@ function ConnectionMarker({
   );
 }
 
-// Connection arc between user and a connection
+// Connection arc
 function ConnectionArc({
   user,
   connection,
   isSelected,
+  zoomScale,
 }: {
   user: GlobeUser;
   connection: GlobeConnection;
   isSelected?: boolean;
+  zoomScale: number;
 }) {
   const points = useMemo(() => {
     const arcPoints = getArcPoints(
@@ -239,10 +230,11 @@ function ConnectionArc({
   const opacity = useMemo(() => {
     if (isSelected) return 0.7;
     if (connection.unreadMessages > 0) return 0.5;
-    return 0.15 + (connection.connectionIntensity / 100) * 0.25;
+    return 0.12 + (connection.connectionIntensity / 100) * 0.2;
   }, [isSelected, connection.unreadMessages, connection.connectionIntensity]);
 
-  const lineWidth = isSelected ? 1.2 : 0.5;
+  // Scale line width with zoom
+  const lineWidth = (isSelected ? 1 : 0.4) * Math.max(0.5, zoomScale);
 
   return (
     <Line
@@ -255,7 +247,77 @@ function ConnectionArc({
   );
 }
 
-// Main scene component
+// Rotating globe with all markers as children
+function RotatingGlobe({
+  user,
+  connections,
+  onConnectionClick,
+  selectedConnection,
+}: Globe3DProps) {
+  const groupRef = useRef<THREE.Group>(null);
+  const earthTexture = useTexture(EARTH_TEXTURE_URL);
+  const zoomScale = useZoomScale();
+
+  // Improve texture rendering
+  earthTexture.colorSpace = THREE.SRGBColorSpace;
+
+  // Rotate the entire group (globe + markers)
+  useFrame(() => {
+    if (groupRef.current && !selectedConnection) {
+      groupRef.current.rotation.y += 0.0008;
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      {/* Earth with texture */}
+      <Sphere args={[GLOBE_RADIUS, 64, 64]}>
+        <meshStandardMaterial
+          map={earthTexture}
+          metalness={0.1}
+          roughness={0.8}
+        />
+      </Sphere>
+
+      {/* Subtle atmosphere */}
+      <Sphere args={[GLOBE_RADIUS * 1.012, 64, 64]}>
+        <meshBasicMaterial
+          color="#4a9eff"
+          transparent
+          opacity={0.06}
+          side={THREE.BackSide}
+        />
+      </Sphere>
+
+      {/* User marker - child of rotating group */}
+      <UserMarker user={user} zoomScale={zoomScale} />
+
+      {/* Connection arcs - children of rotating group */}
+      {connections.map(conn => (
+        <ConnectionArc
+          key={`arc-${conn.id}`}
+          user={user}
+          connection={conn}
+          isSelected={selectedConnection?.id === conn.id}
+          zoomScale={zoomScale}
+        />
+      ))}
+
+      {/* Connection markers - children of rotating group */}
+      {connections.map(conn => (
+        <ConnectionMarker
+          key={conn.id}
+          connection={conn}
+          onClick={() => onConnectionClick?.(conn)}
+          isSelected={selectedConnection?.id === conn.id}
+          zoomScale={zoomScale}
+        />
+      ))}
+    </group>
+  );
+}
+
+// Main scene
 function GlobeScene({
   user,
   connections,
@@ -264,46 +326,27 @@ function GlobeScene({
 }: Globe3DProps) {
   return (
     <>
-      {/* Improved lighting for texture */}
+      {/* Lighting */}
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 3, 5]} intensity={1.2} />
       <pointLight position={[-10, -10, -10]} intensity={0.3} color="#87CEEB" />
 
-      {/* Earth with texture */}
-      <EarthGlobe />
-
-      {/* User marker */}
-      <UserMarker user={user} />
-
-      {/* Connection arcs */}
-      {connections.map(conn => (
-        <ConnectionArc
-          key={`arc-${conn.id}`}
-          user={user}
-          connection={conn}
-          isSelected={selectedConnection?.id === conn.id}
-        />
-      ))}
-
-      {/* Connection markers */}
-      {connections.map(conn => (
-        <ConnectionMarker
-          key={conn.id}
-          connection={conn}
-          onClick={() => onConnectionClick?.(conn)}
-          isSelected={selectedConnection?.id === conn.id}
-        />
-      ))}
+      {/* Rotating globe with all markers as children */}
+      <RotatingGlobe
+        user={user}
+        connections={connections}
+        onConnectionClick={onConnectionClick}
+        selectedConnection={selectedConnection}
+      />
 
       {/* Controls */}
       <OrbitControls
         enablePan={false}
         enableZoom={true}
-        minDistance={1.2}
-        maxDistance={8}
-        zoomSpeed={1.2}
-        autoRotate={!selectedConnection}
-        autoRotateSpeed={0.3}
+        minDistance={1.3}
+        maxDistance={6}
+        zoomSpeed={0.8}
+        rotateSpeed={0.5}
       />
     </>
   );
