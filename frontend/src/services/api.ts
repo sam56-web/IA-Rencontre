@@ -256,6 +256,9 @@ export const discoveryApi = {
     languages?: string[];
     minAge?: number;
     maxAge?: number;
+    location?: string;
+    themes?: string[];
+    search?: string;
     page?: number;
     limit?: number;
   }): Promise<DiscoveryResponse> {
@@ -264,6 +267,7 @@ export const discoveryApi = {
         ...params,
         intentions: params.intentions?.join(','),
         languages: params.languages?.join(','),
+        themes: params.themes?.join(','),
       },
     });
     return data.data!;

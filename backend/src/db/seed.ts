@@ -213,6 +213,28 @@ async function seed(): Promise<void> {
 
     await client.query('COMMIT');
 
+    // Update coordinates for test users (outside transaction for idempotency)
+    console.log('\nUpdating coordinates for Globe 3D...');
+
+    const coordinatesUpdates = [
+      { email: 'alice@example.com', lat: 48.8566, lon: 2.3522 },   // Paris
+      { email: 'bob@example.com', lat: 45.7640, lon: 4.8357 },     // Lyon
+      { email: 'claire@example.com', lat: 48.8606, lon: 2.3376 },  // Paris (different area)
+      { email: 'david@example.com', lat: 50.8503, lon: 4.3517 },   // Brussels
+      { email: 'emma@example.com', lat: 43.2965, lon: 5.3698 },    // Marseille
+    ];
+
+    for (const update of coordinatesUpdates) {
+      await query(`
+        UPDATE users
+        SET approximate_latitude = $1,
+            approximate_longitude = $2
+        WHERE email = $3
+      `, [update.lat, update.lon, update.email]);
+    }
+
+    console.log('  ✓ Coordinates updated for test users');
+
     console.log('\nSeeding completed successfully!');
     console.log('\nTest credentials:');
     console.log('  Email: alice@example.com');

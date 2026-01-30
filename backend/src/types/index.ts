@@ -152,7 +152,7 @@ export interface Photo {
 
 // ============ DISCOVERY ============
 
-export type DiscoveryMode = 'around_me' | 'everywhere' | 'by_intention';
+export type DiscoveryMode = 'geography' | 'affinities' | 'intentions';
 
 export interface DiscoveryParams {
   mode: DiscoveryMode;
@@ -160,6 +160,9 @@ export interface DiscoveryParams {
   languages?: string[];
   minAge?: number;
   maxAge?: number;
+  location?: string;      // City or country search
+  themes?: string[];      // Theme slugs filter
+  search?: string;        // Global text search
   page: number;
   limit: number;
 }

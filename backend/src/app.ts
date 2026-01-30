@@ -23,6 +23,7 @@ import notificationsRoutes from './api/routes/notifications.routes.js';
 import affinityRoutes from './api/routes/affinity.routes.js';
 import eventsRoutes from './api/routes/events.routes.js';
 import badgesRoutes from './api/routes/badges.routes.js';
+import globeRoutes from './api/routes/globe.routes.js';
 
 const app = express();
 
@@ -72,6 +73,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/affinity', affinityRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/badges', badgesRoutes);
+app.use('/api/globe', globeRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

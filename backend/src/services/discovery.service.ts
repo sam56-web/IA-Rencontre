@@ -38,28 +38,16 @@ export async function discoverProfiles(
 
   // Mode-specific filters
   switch (params.mode) {
-    case 'around_me':
-      // Prioritize same country/city, but include remote-friendly from elsewhere
-      conditions.push(`(
-        u.location_country = $${paramIndex}
-        OR u.open_to_remote = true
-      )`);
-      values.push(currentUser.location_country);
-      paramIndex++;
+    case 'geography':
+      // No mode-specific mandatory filters - location filter is optional (in searchFilters)
       break;
 
-    case 'everywhere':
-      // Exclude local_only users from other countries
-      conditions.push(`(
-        u.reach_preference != 'local_only'
-        OR u.location_country = $${paramIndex}
-      )`);
-      values.push(currentUser.location_country);
-      paramIndex++;
+    case 'affinities':
+      // No mode-specific mandatory filters - themes filter is optional (in searchFilters)
       break;
 
-    case 'by_intention':
-      // Filter by specific intentions
+    case 'intentions':
+      // Filter by specific intentions (mandatory if selected)
       if (params.intentions && params.intentions.length > 0) {
         conditions.push(`u.intentions && $${paramIndex}`);
         values.push(params.intentions);
@@ -87,6 +75,54 @@ export async function discoverProfiles(
     conditions.push(`u.birth_year >= $${paramIndex}`);
     values.push(minBirthYear);
     paramIndex++;
+  }
+
+  // Build optional search filters with OR logic (inclusive search)
+  const searchFilters: string[] = [];
+
+  // Location search (city or country)
+  if (params.location && params.location.trim()) {
+    const locationSearch = params.location.trim();
+    searchFilters.push(`(
+      u.location_city ILIKE $${paramIndex}
+      OR u.location_country ILIKE $${paramIndex}
+    )`);
+    values.push(`%${locationSearch}%`);
+    paramIndex++;
+  }
+
+  // Themes filter - match profiles with extracted_themes containing any of the search themes
+  if (params.themes && params.themes.length > 0) {
+    searchFilters.push(`(
+      p.extracted_themes && $${paramIndex}::text[]
+      OR EXISTS (
+        SELECT 1 FROM user_themes ut
+        JOIN themes t ON t.id = ut.theme_id
+        WHERE ut.user_id = u.id AND t.slug = ANY($${paramIndex})
+      )
+    )`);
+    values.push(params.themes);
+    paramIndex++;
+  }
+
+  // Global text search
+  if (params.search && params.search.trim()) {
+    const searchTerm = params.search.trim();
+    searchFilters.push(`(
+      u.username ILIKE $${paramIndex}
+      OR p.current_life ILIKE $${paramIndex}
+      OR p.looking_for ILIKE $${paramIndex}
+      OR p.whats_important ILIKE $${paramIndex}
+      OR u.location_city ILIKE $${paramIndex}
+      OR u.location_country ILIKE $${paramIndex}
+    )`);
+    values.push(`%${searchTerm}%`);
+    paramIndex++;
+  }
+
+  // If there are search filters, use OR logic between them
+  if (searchFilters.length > 0) {
+    conditions.push(`(${searchFilters.join(' OR ')})`);
   }
 
   const whereClause = conditions.join(' AND ');
@@ -157,9 +193,9 @@ export async function discoverProfiles(
     lastActiveCategory: getLastActiveCategory(new Date(row.last_active_at)),
   }));
 
-  // Get zone vitality for around_me mode
+  // Get zone vitality for geography mode
   let zoneVitality: ZoneVitality | undefined;
-  if (params.mode === 'around_me') {
+  if (params.mode === 'geography') {
     zoneVitality = await getZoneVitality(currentUser.location_country, currentUser.location_city);
   }
 

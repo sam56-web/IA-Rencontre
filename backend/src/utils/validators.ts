@@ -100,7 +100,7 @@ export const reorderPhotosSchema = z.object({
 // ============ DISCOVERY ============
 
 export const discoveryQuerySchema = z.object({
-  mode: z.enum(['around_me', 'everywhere', 'by_intention']).default('around_me'),
+  mode: z.enum(['geography', 'affinities', 'intentions']).default('geography'),
   intentions: z
     .string()
     .transform((val) => val.split(',').filter(Boolean))
@@ -113,6 +113,13 @@ export const discoveryQuerySchema = z.object({
     .optional(),
   minAge: z.coerce.number().int().min(18).max(120).optional(),
   maxAge: z.coerce.number().int().min(18).max(120).optional(),
+  location: z.string().max(100).optional(),  // City or country search
+  themes: z
+    .string()
+    .transform((val) => val.split(',').filter(Boolean))
+    .pipe(z.array(z.string()))
+    .optional(),
+  search: z.string().max(200).optional(),    // Global text search
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });

@@ -6,26 +6,24 @@ interface ModeSelectorProps {
   onChange: (mode: DiscoveryMode) => void;
 }
 
-const modes: { value: DiscoveryMode; label: string; description: string }[] = [
+const modes: { value: DiscoveryMode; label: string; description: string; icon: string }[] = [
   {
-    value: 'around_me',
-    label: 'Autour de moi',
-    description: 'Profils de votre région en priorité',
+    value: 'geography',
+    label: 'Géographie',
+    description: 'Rechercher par lieu et rayon',
+    icon: '📍',
   },
   {
-    value: 'by_affinity',
+    value: 'affinities',
     label: 'Affinités',
-    description: 'Les plus compatibles avec vous',
+    description: 'Par centres d\'intérêt',
+    icon: '💜',
   },
   {
-    value: 'everywhere',
-    label: 'Partout',
-    description: 'Tous les profils, sans limite géographique',
-  },
-  {
-    value: 'by_intention',
+    value: 'intentions',
     label: 'Par intention',
-    description: 'Filtrer par ce que les gens cherchent',
+    description: 'Ce que les gens cherchent',
+    icon: '🎯',
   },
 ];
 
@@ -43,7 +41,7 @@ export function ModeSelector({ mode, onChange }: ModeSelectorProps) {
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
           )}
         >
-          <span className="block">{m.label}</span>
+          <span className="block">{m.icon} {m.label}</span>
           <span className="hidden lg:block text-xs font-normal text-gray-500">
             {m.description}
           </span>

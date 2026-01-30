@@ -140,7 +140,7 @@ export interface Photo {
 
 // ============ DISCOVERY ============
 
-export type DiscoveryMode = 'around_me' | 'everywhere' | 'by_intention' | 'by_affinity';
+export type DiscoveryMode = 'geography' | 'affinities' | 'intentions';
 
 export interface DiscoveryResponse {
   profiles: ProfilePreview[];

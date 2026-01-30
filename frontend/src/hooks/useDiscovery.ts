@@ -8,6 +8,9 @@ interface DiscoveryParams {
   languages?: string[];
   minAge?: number;
   maxAge?: number;
+  location?: string;
+  themes?: string[];
+  search?: string;
 }
 
 export function useDiscovery(params: DiscoveryParams = {}) {
