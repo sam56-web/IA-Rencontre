@@ -15,6 +15,7 @@ import { GroupChatPage } from './pages/groups/GroupChatPage';
 import { SearchPage } from './pages/search/SearchPage';
 import { EventsPage } from './pages/events/EventsPage';
 import { EventDetailPage } from './pages/events/EventDetailPage';
+import { GlobePage } from './pages/globe/GlobePage';
 import { ReactNode, useEffect } from 'react';
 import { websocket } from './services/websocket';
 
@@ -185,6 +186,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <EventDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/globe"
+        element={
+          <ProtectedRoute>
+            <GlobePage />
           </ProtectedRoute>
         }
       />

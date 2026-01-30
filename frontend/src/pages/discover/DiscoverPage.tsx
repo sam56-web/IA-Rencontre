@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/Button';
 import { useDiscovery } from '../../hooks/useDiscovery';
@@ -152,14 +152,6 @@ export function DiscoverPage() {
 
   const profiles = data?.pages.flatMap((page) => page.profiles) || [];
   const affinityMatches = affinityData?.users || [];
-
-  const toggleIntention = (intention: Intention) => {
-    setSelectedIntentions((prev) =>
-      prev.includes(intention)
-        ? prev.filter((i) => i !== intention)
-        : [...prev, intention]
-    );
-  };
 
   const renderSearchBar = () => {
     switch (mode) {
