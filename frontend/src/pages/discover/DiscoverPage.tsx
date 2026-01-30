@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/Button';
 import { useDiscovery } from '../../hooks/useDiscovery';
 import { useAffinityMatches } from '../../hooks/useAffinity';
+import { useGlobeConnections } from '../../hooks/useGlobe';
 import { ProfileCard } from './components/ProfileCard';
 import { AffinityCard } from './components/AffinityCard';
 import { ModeSelector } from './components/ModeSelector';
@@ -10,6 +12,75 @@ import { ZoneVitality } from './components/ZoneVitality';
 import { INTENTION_LABELS } from '../../types';
 import type { DiscoveryMode, Intention } from '../../types';
 import { extractKeywords, THEME_LABELS } from '../../utils/keywordExtractor';
+
+import { Globe3D } from '../../components/globe/Globe3D';
+
+// Compact Globe Widget for homepage
+function GlobeWidget() {
+  const navigate = useNavigate();
+  const { data: globeData, isLoading } = useGlobeConnections();
+
+  if (isLoading) {
+    return (
+      <div className="h-64 bg-gray-900 rounded-lg flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto mb-2"></div>
+          <p className="text-gray-400 text-xs">Chargement du globe...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!globeData) {
+    return null;
+  }
+
+  return (
+    <div className="relative h-64 bg-gray-900 rounded-lg overflow-hidden">
+      {/* Mini Globe */}
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      }>
+        <Globe3D
+          user={globeData.user}
+          connections={globeData.connections}
+          onConnectionClick={(conn) => navigate(`/profile/${conn.id}`)}
+        />
+      </Suspense>
+
+      {/* Overlay stats */}
+      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm rounded px-2 py-1">
+        <div className="flex gap-3 text-[10px]">
+          <span className="text-gray-400">
+            Connexions: <span className="text-white font-medium">{globeData.stats?.total || 0}</span>
+          </span>
+          <span className="text-gray-400">
+            En ligne: <span className="text-green-400 font-medium">{globeData.stats?.online || 0}</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Full screen button */}
+      <button
+        onClick={() => navigate('/globe')}
+        className="absolute top-2 right-2 bg-black/70 hover:bg-black/90 backdrop-blur-sm rounded px-2 py-1 text-white text-xs flex items-center gap-1 transition-colors"
+      >
+        <ExpandIcon className="w-3 h-3" />
+        Plein écran
+      </button>
+    </div>
+  );
+}
+
+function ExpandIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+    </svg>
+  );
+}
 
 export function DiscoverPage() {
   const [mode, setMode] = useState<DiscoveryMode>('geography');
@@ -349,6 +420,11 @@ export function DiscoverPage() {
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Découvrir</h1>
             <p className="text-gray-600">Trouvez des personnes qui partagent vos intentions</p>
+          </div>
+
+          {/* Globe Widget - Prominent placement */}
+          <div className="mb-6">
+            <GlobeWidget />
           </div>
 
           {/* Mode selector */}
