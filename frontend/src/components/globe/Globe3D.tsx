@@ -16,10 +16,8 @@ const GLOBE_RADIUS = 1;
 
 // High resolution texture URLs
 const TEXTURES = {
-  // NASA Blue Marble high-res (5400x2700)
-  earth: 'https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74393/world.200412.3x5400x2700.jpg',
-  // Fallback if NASA doesn't load
-  earthFallback: 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg',
+  // Earth texture (Blue Marble - reliable CDN)
+  earth: 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg',
   // Bump map for relief/mountains
   bump: 'https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png',
 };
