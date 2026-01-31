@@ -1,10 +1,12 @@
-import { useState, Suspense } from 'react';
+import { useState, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/Button';
-import { Globe3D } from '../../components/globe/Globe3D';
 import { useGlobeConnections, useRefreshGlobeCache } from '../../hooks/useGlobe';
 import type { GlobeConnection } from '../../types/globe';
+
+// Lazy load the globe component for better performance
+const TiledGlobe = lazy(() => import('../../components/globe/TiledGlobe'));
 
 function LoadingGlobe() {
   return (
@@ -214,7 +216,7 @@ export function GlobePage() {
               <LoadingGlobe />
             ) : globeData ? (
               <Suspense fallback={<LoadingGlobe />}>
-                <Globe3D
+                <TiledGlobe
                   user={globeData.user}
                   connections={globeData.connections}
                   onConnectionClick={handleConnectionClick}
