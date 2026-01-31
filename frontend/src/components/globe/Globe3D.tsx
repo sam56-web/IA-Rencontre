@@ -20,7 +20,7 @@ const BASE_USER_SIZE = 0.015;
 const BASE_CONNECTION_SIZE = 0.008;
 
 // Zoom thresholds for showing labels
-const CLOSE_ZOOM_THRESHOLD = 2.5; // Show labels when camera is closer than this
+const CLOSE_ZOOM_THRESHOLD = 3.0; // Show labels when camera is closer than this
 
 // Loading indicator
 function Loader() {
@@ -50,12 +50,13 @@ function UserMarker({ user }: { user: GlobeUser }) {
   useFrame(() => {
     if (groupRef.current) {
       const dist = camera.position.distanceTo(position);
-      // Logarithmic scale for smooth progression:
-      // dist ~1.5 → scale ~0.5 (close, small)
-      // dist ~4   → scale ~1.0 (medium)
-      // dist ~7   → scale ~1.4 (far, larger)
-      const scale = 0.3 + Math.log(dist + 0.5) * 0.5;
-      const clampedScale = Math.max(0.4, Math.min(1.6, scale));
+      // Logarithmic scale adjusted for close zoom:
+      // dist ~0.8 → scale ~0.3 (very close, small)
+      // dist ~2   → scale ~0.6 (close)
+      // dist ~4   → scale ~0.9 (medium)
+      // dist ~7   → scale ~1.2 (far, larger)
+      const scale = 0.2 + Math.log(dist + 0.3) * 0.45;
+      const clampedScale = Math.max(0.25, Math.min(1.4, scale));
       groupRef.current.scale.setScalar(clampedScale);
 
       // Auto-show label when zoomed close
@@ -148,9 +149,9 @@ function ConnectionMarker({
   useFrame(() => {
     if (groupRef.current) {
       const dist = camera.position.distanceTo(position);
-      // Logarithmic scale for smooth progression
-      const scale = 0.3 + Math.log(dist + 0.5) * 0.5;
-      const clampedScale = Math.max(0.4, Math.min(1.6, scale));
+      // Logarithmic scale adjusted for close zoom
+      const scale = 0.2 + Math.log(dist + 0.3) * 0.45;
+      const clampedScale = Math.max(0.25, Math.min(1.4, scale));
       groupRef.current.scale.setScalar(clampedScale);
 
       // Auto-show label when zoomed close
@@ -381,9 +382,9 @@ function GlobeScene({
 
       {/* Controls - slow progressive zoom for smooth experience */}
       <OrbitControls
-        // Zoom settings - SLOW and progressive
+        // Zoom settings - SLOW and progressive, allows city-level zoom
         enableZoom={true}
-        minDistance={1.5}         // City level max (not too close)
+        minDistance={0.8}         // Very close - city level view
         maxDistance={7}           // Full globe view
         zoomSpeed={0.3}           // VERY SLOW - fine control
 
