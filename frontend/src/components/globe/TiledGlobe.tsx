@@ -1,6 +1,19 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import Globe from 'react-globe.gl';
 import type { GlobeConnection, GlobeUser } from '../../types/globe';
+
+// Check WebGL support
+function isWebGLSupported(): boolean {
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    );
+  } catch {
+    return false;
+  }
+}
 
 interface TiledGlobeProps {
   user: GlobeUser;
@@ -36,6 +49,37 @@ export function TiledGlobe({
   selectedConnection,
 }: TiledGlobeProps) {
   const globeRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [webglSupported] = useState(() => isWebGLSupported());
+
+  // Return fallback if WebGL not supported
+  if (!webglSupported) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-900 rounded-lg">
+        <div className="text-center text-gray-400">
+          <p className="text-sm">Globe 3D non disponible</p>
+          <p className="text-xs mt-1">WebGL non support par votre navigateur</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Track container dimensions
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight,
+        });
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
 
   // Points data (user + connections)
   const pointsData = useMemo<PointData[]>(() => {
@@ -102,13 +146,16 @@ export function TiledGlobe({
   }, [selectedConnection, user]);
 
   return (
-    <div className="w-full h-full bg-gray-900">
-      <Globe
-        ref={globeRef}
-        // High-res earth texture
-        globeImageUrl="/textures/earth-4k.jpg"
-        bumpImageUrl="/textures/earth-normal.jpg"
-        backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+    <div ref={containerRef} className="w-full h-full bg-gray-900">
+      {dimensions.width > 0 && dimensions.height > 0 && (
+        <Globe
+          ref={globeRef}
+          width={dimensions.width}
+          height={dimensions.height}
+          // High-res earth texture
+          globeImageUrl="/textures/earth-4k.jpg"
+          bumpImageUrl="/textures/earth-normal.jpg"
+          backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
         // Points
         pointsData={pointsData}
         pointLat="lat"
@@ -156,6 +203,7 @@ export function TiledGlobe({
         // Controls
         enablePointerInteraction={true}
       />
+      )}
     </div>
   );
 }

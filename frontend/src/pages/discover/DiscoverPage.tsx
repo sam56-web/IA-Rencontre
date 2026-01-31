@@ -12,7 +12,6 @@ import { ZoneVitality } from './components/ZoneVitality';
 import { INTENTION_LABELS } from '../../types';
 import type { DiscoveryMode, Intention } from '../../types';
 import { extractKeywords, THEME_LABELS } from '../../utils/keywordExtractor';
-
 import { Globe3D } from '../../components/globe/Globe3D';
 
 // Compact Globe Widget for homepage
