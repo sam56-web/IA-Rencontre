@@ -20,7 +20,7 @@ const BASE_USER_SIZE = 0.015;
 const BASE_CONNECTION_SIZE = 0.008;
 
 // Zoom thresholds for showing labels
-const CLOSE_ZOOM_THRESHOLD = 1.5; // Show labels when camera is closer than this
+const CLOSE_ZOOM_THRESHOLD = 2.5; // Show labels when camera is closer than this
 
 // Loading indicator
 function Loader() {
@@ -46,14 +46,17 @@ function UserMarker({ user }: { user: GlobeUser }) {
     return new THREE.Vector3(p.x, p.y, p.z);
   }, [user.latitude, user.longitude]);
 
-  // Adaptive scaling based on camera distance
+  // Adaptive scaling based on camera distance (logarithmic for smooth progression)
   useFrame(() => {
     if (groupRef.current) {
       const dist = camera.position.distanceTo(position);
-      // Scale points to remain visible at all zoom levels
-      // Closer = smaller scale, farther = larger scale
-      const scale = Math.max(0.4, Math.min(2.5, dist * 0.5));
-      groupRef.current.scale.setScalar(scale);
+      // Logarithmic scale for smooth progression:
+      // dist ~1.5 → scale ~0.5 (close, small)
+      // dist ~4   → scale ~1.0 (medium)
+      // dist ~7   → scale ~1.4 (far, larger)
+      const scale = 0.3 + Math.log(dist + 0.5) * 0.5;
+      const clampedScale = Math.max(0.4, Math.min(1.6, scale));
+      groupRef.current.scale.setScalar(clampedScale);
 
       // Auto-show label when zoomed close
       setShowLabel(dist < CLOSE_ZOOM_THRESHOLD);
@@ -141,13 +144,14 @@ function ConnectionMarker({
     return BASE_CONNECTION_SIZE + intensityBonus + unreadBonus;
   }, [connection.connectionIntensity, connection.unreadMessages]);
 
-  // Adaptive scaling and rotation
+  // Adaptive scaling and rotation (logarithmic for smooth progression)
   useFrame(() => {
     if (groupRef.current) {
       const dist = camera.position.distanceTo(position);
-      // Scale points to remain visible at all zoom levels
-      const scale = Math.max(0.4, Math.min(2.5, dist * 0.5));
-      groupRef.current.scale.setScalar(scale);
+      // Logarithmic scale for smooth progression
+      const scale = 0.3 + Math.log(dist + 0.5) * 0.5;
+      const clampedScale = Math.max(0.4, Math.min(1.6, scale));
+      groupRef.current.scale.setScalar(clampedScale);
 
       // Auto-show label when zoomed close
       setShowLabel(dist < CLOSE_ZOOM_THRESHOLD);
@@ -375,31 +379,31 @@ function GlobeScene({
         selectedConnection={selectedConnection}
       />
 
-      {/* Controls - deep zoom enabled for city-level view */}
+      {/* Controls - slow progressive zoom for smooth experience */}
       <OrbitControls
-        // Zoom settings - allows very close zoom (city level)
+        // Zoom settings - SLOW and progressive
         enableZoom={true}
-        minDistance={0.5}         // Very close - city level
-        maxDistance={10}          // Far view - full globe
-        zoomSpeed={1.5}           // Faster zoom
+        minDistance={1.5}         // City level max (not too close)
+        maxDistance={7}           // Full globe view
+        zoomSpeed={0.3}           // VERY SLOW - fine control
 
-        // Rotation
+        // Rotation - slow for precision
         enableRotate={true}
-        rotateSpeed={0.5}
+        rotateSpeed={0.4}
         autoRotate={false}
 
-        // Pan - enabled for navigation when zoomed
+        // Pan - enabled but slow
         enablePan={true}
-        panSpeed={0.8}
+        panSpeed={0.4}
         screenSpacePanning={true}
 
-        // Smooth movement
+        // Smooth movement with strong inertia
         enableDamping={true}
-        dampingFactor={0.05}
+        dampingFactor={0.1}       // More inertia = smoother
 
         // Vertical limits - prevent seeing under the globe
-        minPolarAngle={0.1}
-        maxPolarAngle={Math.PI - 0.1}
+        minPolarAngle={0.3}
+        maxPolarAngle={Math.PI - 0.3}
       />
     </>
   );
