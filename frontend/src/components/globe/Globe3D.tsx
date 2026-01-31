@@ -13,7 +13,16 @@ interface Globe3DProps {
 }
 
 const GLOBE_RADIUS = 1;
-const EARTH_TEXTURE_URL = 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg';
+
+// High resolution texture URLs
+const TEXTURES = {
+  // NASA Blue Marble high-res (5400x2700)
+  earth: 'https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74393/world.200412.3x5400x2700.jpg',
+  // Fallback if NASA doesn't load
+  earthFallback: 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg',
+  // Bump map for relief/mountains
+  bump: 'https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png',
+};
 
 // Base sizes
 const BASE_USER_SIZE = 0.015;
@@ -302,32 +311,40 @@ function StaticGlobe({
   onConnectionClick,
   selectedConnection,
 }: Globe3DProps) {
-  const earthTexture = useTexture(EARTH_TEXTURE_URL);
+  // Load high-resolution textures (earth + bump map for relief)
+  const [earthTexture, bumpTexture] = useTexture([
+    TEXTURES.earth,
+    TEXTURES.bump,
+  ]);
 
-  // Improve texture rendering
+  // Improve texture rendering quality
   useMemo(() => {
     earthTexture.colorSpace = THREE.SRGBColorSpace;
-  }, [earthTexture]);
+    earthTexture.anisotropy = 16; // Better quality at angles
+    bumpTexture.anisotropy = 8;
+  }, [earthTexture, bumpTexture]);
 
   // NO auto-rotation - user controls rotation manually via OrbitControls
 
   return (
     <group>
-      {/* Earth with texture */}
-      <Sphere args={[GLOBE_RADIUS, 64, 64]}>
+      {/* Earth with high-res texture + bump map for relief */}
+      <Sphere args={[GLOBE_RADIUS, 128, 128]}> {/* More segments = smoother */}
         <meshStandardMaterial
           map={earthTexture}
+          bumpMap={bumpTexture}
+          bumpScale={0.02}        // Subtle relief effect
           metalness={0.1}
-          roughness={0.8}
+          roughness={0.7}
         />
       </Sphere>
 
-      {/* Subtle atmosphere */}
-      <Sphere args={[GLOBE_RADIUS * 1.012, 64, 64]}>
+      {/* Subtle atmosphere glow */}
+      <Sphere args={[GLOBE_RADIUS * 1.015, 64, 64]}>
         <meshBasicMaterial
           color="#4a9eff"
           transparent
-          opacity={0.06}
+          opacity={0.08}
           side={THREE.BackSide}
         />
       </Sphere>
