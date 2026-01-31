@@ -1,5 +1,5 @@
 import { useRef, useMemo, useState, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Sphere, Html, Line, useTexture, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import type { GlobeConnection, GlobeUser } from '../../types/globe';
@@ -19,6 +19,9 @@ const EARTH_TEXTURE_URL = 'https://unpkg.com/three-globe@2.31.0/example/img/eart
 const BASE_USER_SIZE = 0.015;
 const BASE_CONNECTION_SIZE = 0.008;
 
+// Zoom thresholds for showing labels
+const CLOSE_ZOOM_THRESHOLD = 1.5; // Show labels when camera is closer than this
+
 // Loading indicator
 function Loader() {
   const { progress } = useProgress();
@@ -31,17 +34,34 @@ function Loader() {
   );
 }
 
-// User marker with hover-only label
+// User marker with hover-only label and adaptive scaling
 function UserMarker({ user }: { user: GlobeUser }) {
   const [hovered, setHovered] = useState(false);
+  const [showLabel, setShowLabel] = useState(false);
+  const groupRef = useRef<THREE.Group>(null);
+  const { camera } = useThree();
 
   const position = useMemo(() => {
     const p = latLonToVector3(user.latitude, user.longitude, GLOBE_RADIUS * 1.01);
     return new THREE.Vector3(p.x, p.y, p.z);
   }, [user.latitude, user.longitude]);
 
+  // Adaptive scaling based on camera distance
+  useFrame(() => {
+    if (groupRef.current) {
+      const dist = camera.position.distanceTo(position);
+      // Scale points to remain visible at all zoom levels
+      // Closer = smaller scale, farther = larger scale
+      const scale = Math.max(0.4, Math.min(2.5, dist * 0.5));
+      groupRef.current.scale.setScalar(scale);
+
+      // Auto-show label when zoomed close
+      setShowLabel(dist < CLOSE_ZOOM_THRESHOLD);
+    }
+  });
+
   return (
-    <group position={position}>
+    <group ref={groupRef} position={position}>
       {/* Invisible larger sphere for hover detection */}
       <Sphere
         args={[BASE_USER_SIZE * 2.5, 8, 8]}
@@ -62,8 +82,8 @@ function UserMarker({ user }: { user: GlobeUser }) {
         <meshStandardMaterial color="#f6e05e" transparent opacity={0.25} />
       </Sphere>
 
-      {/* Label only on hover - with pointerEvents none to prevent flickering */}
-      {hovered && (
+      {/* Label on hover OR when zoomed close */}
+      {(hovered || showLabel) && (
         <Html
           position={[0, 0.05, 0]}
           center
@@ -79,7 +99,7 @@ function UserMarker({ user }: { user: GlobeUser }) {
   );
 }
 
-// Connection marker
+// Connection marker with adaptive scaling
 function ConnectionMarker({
   connection,
   onClick,
@@ -90,7 +110,10 @@ function ConnectionMarker({
   isSelected?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [showLabel, setShowLabel] = useState(false);
   const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const { camera } = useThree();
 
   const position = useMemo(() => {
     const basePos = latLonToVector3(
@@ -118,14 +141,29 @@ function ConnectionMarker({
     return BASE_CONNECTION_SIZE + intensityBonus + unreadBonus;
   }, [connection.connectionIntensity, connection.unreadMessages]);
 
+  // Adaptive scaling and rotation
   useFrame(() => {
+    if (groupRef.current) {
+      const dist = camera.position.distanceTo(position);
+      // Scale points to remain visible at all zoom levels
+      const scale = Math.max(0.4, Math.min(2.5, dist * 0.5));
+      groupRef.current.scale.setScalar(scale);
+
+      // Auto-show label when zoomed close
+      setShowLabel(dist < CLOSE_ZOOM_THRESHOLD);
+    }
+
     if (meshRef.current && (hovered || isSelected)) {
       meshRef.current.rotation.y += 0.05;
     }
   });
 
+  // Show detailed tooltip on hover/selected, or simple label when zoomed close
+  const showDetailedTooltip = hovered || isSelected;
+  const showSimpleLabel = showLabel && !showDetailedTooltip;
+
   return (
-    <group position={position}>
+    <group ref={groupRef} position={position}>
       {/* Invisible larger sphere for hover detection - prevents flickering */}
       <Sphere
         args={[size * 2.5, 8, 8]}
@@ -171,8 +209,22 @@ function ConnectionMarker({
         </Sphere>
       )}
 
-      {/* Hover/Selected tooltip - with pointerEvents none to prevent flickering */}
-      {(hovered || isSelected) && (
+      {/* Simple label when zoomed close (not hovered) */}
+      {showSimpleLabel && (
+        <Html
+          position={[0, 0.025, 0]}
+          center
+          occlude={false}
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
+          <div className="bg-black/70 text-white text-[8px] px-1.5 py-0.5 rounded whitespace-nowrap">
+            {connection.displayName}
+          </div>
+        </Html>
+      )}
+
+      {/* Detailed tooltip on hover/selected */}
+      {showDetailedTooltip && (
         <Html
           center
           distanceFactor={2}
@@ -323,15 +375,31 @@ function GlobeScene({
         selectedConnection={selectedConnection}
       />
 
-      {/* Controls - user rotates manually */}
+      {/* Controls - deep zoom enabled for city-level view */}
       <OrbitControls
-        enablePan={false}
+        // Zoom settings - allows very close zoom (city level)
         enableZoom={true}
-        minDistance={1.5}
-        maxDistance={5}
-        zoomSpeed={0.8}
+        minDistance={0.5}         // Very close - city level
+        maxDistance={10}          // Far view - full globe
+        zoomSpeed={1.5}           // Faster zoom
+
+        // Rotation
+        enableRotate={true}
         rotateSpeed={0.5}
         autoRotate={false}
+
+        // Pan - enabled for navigation when zoomed
+        enablePan={true}
+        panSpeed={0.8}
+        screenSpacePanning={true}
+
+        // Smooth movement
+        enableDamping={true}
+        dampingFactor={0.05}
+
+        // Vertical limits - prevent seeing under the globe
+        minPolarAngle={0.1}
+        maxPolarAngle={Math.PI - 0.1}
       />
     </>
   );
@@ -348,8 +416,10 @@ export function Globe3D({
     <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden">
       <Canvas
         camera={{
-          position: [0, 0.5, 3],
-          fov: 50
+          position: [0, 0.5, 3.5],
+          fov: 45,
+          near: 0.01,  // Allow very close rendering
+          far: 100,
         }}
         style={{ background: 'linear-gradient(to bottom, #0f172a, #020617)' }}
       >
