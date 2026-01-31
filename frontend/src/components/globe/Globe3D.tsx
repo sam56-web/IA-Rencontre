@@ -14,12 +14,12 @@ interface Globe3DProps {
 
 const GLOBE_RADIUS = 1;
 
-// High resolution texture URLs
+// High resolution local textures (4K for better detail)
 const TEXTURES = {
-  // Earth texture (Blue Marble - reliable CDN)
-  earth: 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg',
-  // Bump map for relief/mountains
-  bump: 'https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png',
+  // 4K Earth texture (local for fast loading)
+  earth: '/textures/earth-4k.jpg',
+  // Normal map for relief/mountains
+  bump: '/textures/earth-normal.jpg',
 };
 
 // Base sizes
@@ -315,11 +315,15 @@ function StaticGlobe({
     TEXTURES.bump,
   ]);
 
-  // Improve texture rendering quality
+  // Improve texture rendering quality for 4K detail
   useMemo(() => {
     earthTexture.colorSpace = THREE.SRGBColorSpace;
     earthTexture.anisotropy = 16; // Better quality at angles
-    bumpTexture.anisotropy = 8;
+    earthTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    earthTexture.magFilter = THREE.LinearFilter;
+    earthTexture.generateMipmaps = true;
+    bumpTexture.anisotropy = 16;
+    bumpTexture.minFilter = THREE.LinearMipmapLinearFilter;
   }, [earthTexture, bumpTexture]);
 
   // NO auto-rotation - user controls rotation manually via OrbitControls
