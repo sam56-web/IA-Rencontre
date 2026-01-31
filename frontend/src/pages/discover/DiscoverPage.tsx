@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/Button';
@@ -205,7 +205,6 @@ export function DiscoverPage() {
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
-    refetch,
   } = useDiscovery({
     mode,
     intentions: mode === 'intentions' ? selectedIntentions : undefined,
@@ -216,10 +215,6 @@ export function DiscoverPage() {
     data: affinityData,
     isLoading: affinityLoading,
   } = useAffinityMatches({ limit: 20 });
-
-  useEffect(() => {
-    refetch();
-  }, [mode, selectedIntentions, selectedCity, selectedThemes, ageFilter, refetch]);
 
   const profiles = data?.pages.flatMap((page) => page.profiles) || [];
   const affinityMatches = affinityData?.users || [];
